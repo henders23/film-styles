@@ -1,6 +1,6 @@
 ---
 name: lemo-opuscar
-description: Direct and produce a short film made entirely in code, in one of the styles of the Lemo-Opuscar library (e.g. Impasto Oil Painting 油画厚涂, Watercolor Brush 水彩笔刷, Chinese Ink Wash 中国水墨, Ukiyo-e 浮世绘, Whiteboard Explainer 白板讲解). Use when the user asks for a video, film, short, promo, explainer or animation (视频、短片、动画、宣传片) in a named style; when they want a film made about their own topic and haven't chosen a style (help them choose); or when they ask which film styles there are. Not for editing or converting existing video files.
+description: Direct and produce a short film made entirely in code, in one of the styles of the Lemo-Opuscar library (e.g. Impasto Oil Painting, Watercolor Brush, Chinese Ink Wash, Ukiyo-e, Whiteboard Explainer). Use when the user asks for a video, film, short, promo, explainer or animation (视频、短片、动画、宣传片) in a named style; when they want a film made about their own topic and haven't chosen a style (help them choose); or when they ask which film styles there are. Not for editing or converting existing video files.
 ---
 
 # Lemo-Opuscar

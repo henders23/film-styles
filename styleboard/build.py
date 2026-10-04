@@ -11,11 +11,10 @@ REPO = 'lemomo-ai/lemo-opuscar'
 FILMS_URL = f'https://github.com/{REPO}/releases/download/films'   # full films live on the "films" release as <slug>.mp4
 BLOB_URL = f'https://github.com/{REPO}/blob/main'
 
-# The nine categories, in gallery order. A style.json must name one of them (both languages, exactly).
-CATEGORIES = [('手绘与绘画', 'Hand-drawn & Painting'), ('东方传统', 'East Asian Traditions'), ('印刷与版画', 'Print & Printmaking'),
-              ('图形与排版', 'Graphic & Type'), ('信息与发布', 'Information & Keynote'), ('卡通与动画', 'Cartoon & Anime'),
-              ('游戏', 'Games'), ('电影与时代', 'Cinema & Eras'), ('材质与 3D', 'Materials & 3D')]
-FIELDS = ('slug', 'num', 'en', 'cn', 'category_en', 'category_cn', 'film', 'line', 'line_cn', 'uses', 'frame_sec', 'dur')
+# The nine categories, in gallery order. A style.json must name one of them (exactly).
+CATEGORIES = ['Hand-drawn & Painting', 'East Asian Traditions', 'Print & Printmaking', 'Graphic & Type', 'Information & Keynote',
+              'Cartoon & Anime', 'Games', 'Cinema & Eras', 'Materials & 3D']
+FIELDS = ('slug', 'num', 'en', 'category_en', 'film', 'line', 'uses', 'frame_sec', 'dur')
 
 
 def film_seconds(mp4):
@@ -38,8 +37,8 @@ def load_styles(refresh_dur):
         miss = [f for f in FIELDS if f not in j]
         if miss: bad.append(f'styles/{slug}/style.json: missing {", ".join(miss)}'); continue
         if j['slug'] != slug: bad.append(f'styles/{slug}/style.json: slug is "{j["slug"]}", folder is "{slug}"')
-        if (j['category_cn'], j['category_en']) not in CATEGORIES:
-            bad.append(f'styles/{slug}/style.json: unknown category "{j["category_en"]} / {j["category_cn"]}" (see CATEGORIES in styleboard/build.py)')
+        if j['category_en'] not in CATEGORIES:
+            bad.append(f'styles/{slug}/style.json: unknown category "{j["category_en"]}" (see CATEGORIES in styleboard/build.py)')
         mp4 = os.path.join(ROOT, 'styles', slug, slug + '.mp4')
         if refresh_dur and os.path.exists(mp4):
             d = film_seconds(mp4)
@@ -48,11 +47,11 @@ def load_styles(refresh_dur):
             elif round(d, 1) != j['dur']:
                 j['dur'] = round(d, 1)
                 open(p, 'w', encoding='utf-8').write(json.dumps(j, ensure_ascii=False, indent=1) + '\n')
-        out.append(dict(slug=slug, num=j['num'], en=j['en'], cn=j['cn'], cat=j['category_cn'], cat_en=j['category_en'],
-                        film=j['film'], line=j['line'], line_cn=j['line_cn'], uses=j['uses'], dur=j['dur'], frame_sec=j['frame_sec']))
+        out.append(dict(slug=slug, num=j['num'], en=j['en'], cat=j['category_en'],
+                        film=j['film'], line=j['line'], uses=j['uses'], dur=j['dur'], frame_sec=j['frame_sec']))
     if bad: raise SystemExit('styleboard/build.py:\n  ' + '\n  '.join(bad))
     order = {c: i for i, c in enumerate(CATEGORIES)}
-    out.sort(key=lambda s: (order.get((s['cat'], s['cat_en']), 99), int(re.match(r'\d+', s['num']).group()), s['num']))
+    out.sort(key=lambda s: (order.get(s['cat'], 99), int(re.match(r'\d+', s['num']).group()), s['num']))
     return out
 
 
@@ -124,26 +123,26 @@ def card(s):
     links = []
     if vid: links.append(f'<a class="watch" href="{esc(s.get("full") or s["video"])}" data-play>Watch the film</a>')
     if s.get('stylemd'): links.append(f'<a href="{esc(s["stylemd"])}" target="_blank" rel="noopener">STYLE.md</a>')
-    return (f'<article class="nominee" data-slug="{esc(s["slug"])}" data-en="{esc(s["en"])}" data-cn="{esc(s["cn"])}" data-film="{esc(film)}">\n'
+    return (f'<article class="nominee" data-slug="{esc(s["slug"])}" data-en="{esc(s["en"])}" data-film="{esc(film)}">\n'
             f'  <div class="screen">{main}{play}</div>\n'
             f'  <div class="plate">\n'
-            f'    <h3>{esc(s["en"])}</h3><p class="cn">{esc(s["cn"])}</p>\n'
+            f'    <h3>{esc(s["en"])}</h3>\n'
             f'    <p class="for">for <em>{esc(film)}</em></p>\n'
-            f'    <p class="line">{esc(s.get("line", ""))}</p><p class="line-cn">{esc(s.get("line_cn", ""))}</p>\n'
+            f'    <p class="line">{esc(s.get("line", ""))}</p>\n'
             f'    {f"<ul class=uses aria-label=\"Best for\">{uses}</ul>" if uses else ""}\n'
             f'    <nav class="links">{"".join(links)}</nav>\n'
             f'  </div>\n</article>')
 
-cats = [c for c in CATEGORIES if any((s['cat'], s['cat_en']) == c for s in styles)]
+cats = [c for c in CATEGORIES if any(s['cat'] == c for s in styles)]
 sections, tabs = [], []
-for i, (cn, en) in enumerate(cats, 1):
-    group = [s for s in styles if s['cat'] == cn]
+for i, en in enumerate(cats, 1):
+    group = [s for s in styles if s['cat'] == en]
     sid = re.sub(r'[^a-z0-9]+', '-', en.lower()).strip('-')
-    tabs.append(f'<button data-f="{sid}">{esc(en)}<small>{esc(cn)}</small></button>')
+    tabs.append(f'<button data-f="{sid}">{esc(en)}</button>')
     sections.append(
         f'<section class="category" id="{sid}">\n'
         f'  <header class="cat-head"><svg class="lf"><use href="#laurel"/></svg>'
-        f'<div><p class="cat-no">Category {i:02d}</p><h2>{esc(en)}</h2><p class="cat-cn">{esc(cn)} · {len(group)} nominees</p></div>'
+        f'<div><p class="cat-no">Category {i:02d}</p><h2>{esc(en)}</h2><p class="cat-count">{len(group)} nominees</p></div>'
         f'<svg class="lf"><use href="#laurel"/></svg></header>\n'
         f'  <div class="grid">\n' + '\n'.join(map(card, group)) + '\n  </div>\n</section>')
 
@@ -226,11 +225,11 @@ def llms_txt():
            f'- [Agent instructions]({BLOB_URL}/AGENTS.md): how an agent directs a film in one of the styles',
            f'- [Gallery]({SITE_URL}): every style with its demo film',
            f'- [OPUSCAR 98]({FILM_URL}): 98 Years of Best Picture ({FEATURE["dur"]}), the feature film made with these tools', '']
-    for cn, en in cats:
-        group = [x for x in styles if x['cat'] == cn and x['stylemd']]
+    for en in cats:
+        group = [x for x in styles if x['cat'] == en and x['stylemd']]
         if not group: continue
         out += [f'## {en}', '']
-        out += [f'- [{s["en"]} · {s["cn"]}]({BLOB_URL}/styles/{s["slug"]}/STYLE.md): {s["line"]}' for s in group]
+        out += [f'- [{s["en"]}]({BLOB_URL}/styles/{s["slug"]}/STYLE.md): {s["line"]}' for s in group]
         out.append('')
     return '\n'.join(out)
 
@@ -246,19 +245,18 @@ if site:   # Pages site: pages + style frames + posters + llms.txt + sitemap
 
 
 def readme_grid():
-    """README, between <!-- styles:start --> and <!-- styles:end -->: image grid by category (docs/frames/<slug>.jpg), both languages."""
+    """README, between <!-- styles:start --> and <!-- styles:end -->: image grid by category (docs/frames/<slug>.jpg), with each style's one-line story."""
     out = []
-    for cn, en in cats:
-        group = [x for x in styles if x['cat'] == cn and x['stylemd']]
+    for en in cats:
+        group = [x for x in styles if x['cat'] == en and x['stylemd']]
         if not group: continue
-        out.append(f'\n### {en} · {cn}\n\n<table>')
+        out.append(f'\n### {en}\n\n<table>')
         for i in range(0, len(group), 3):
             out.append('<tr>')
             for s in group[i:i + 3]:
-                cn_name = f' · {s["cn"]}' if s['cn'] != s['en'] else ''
                 out.append(f'<td width="33%" valign="top"><a href="styles/{s["slug"]}/STYLE.md"><img src="docs/frames/{s["slug"]}.jpg" alt="{html.escape(s["en"])}"></a><br>'
-                           f'<b>{html.escape(s["en"])}</b>{html.escape(cn_name)}<br><i>{html.escape(s["film"])}</i><br>'
-                           f'<sub>{html.escape(s["line"])}<br>{html.escape(s["line_cn"])}</sub></td>')
+                           f'<b>{html.escape(s["en"])}</b><br><i>{html.escape(s["film"])}</i><br>'
+                           f'<sub>{html.escape(s["line"])}</sub></td>')
             out.append('</tr>')
         out.append('</table>')
     return '\n'.join(out) + '\n'
@@ -274,27 +272,26 @@ for fn in ('README.md',):
 
 
 def style_index():
-    """styles/README.md: style name (English / Chinese) → folder. Agents look up the STYLE.md for the name a user gives here."""
-    out = ['# Style index · 风格索引', '',
-           'Users may name a style in English, in Chinese, or by its folder. Find it here, then read `styles/<folder>/STYLE.md`.',
-           '用户可能用英文名、中文名或文件夹名来指定风格。在这里查到文件夹，再读 `styles/<文件夹>/STYLE.md`。', '<!-- generated by styleboard/build.py from styles/*/style.json; do not edit by hand -->', '']
-    for cn, en in cats:
-        group = [x for x in styles if x['cat'] == cn and x['stylemd']]
+    """styles/README.md: style name → folder. Agents look up the STYLE.md for the name a user gives here."""
+    out = ['# Style index', '',
+           'Users may name a style by its name or by its folder. Find it here, then read `styles/<folder>/STYLE.md`.', '<!-- generated by styleboard/build.py from styles/*/style.json; do not edit by hand -->', '']
+    for en in cats:
+        group = [x for x in styles if x['cat'] == en and x['stylemd']]
         if not group: continue
-        out += [f'## {en} · {cn}', '', '| Style | 风格 | Folder | Our demo |', '|---|---|---|---|']
-        out += [f'| {s["en"]} | {s["cn"]} | [`{s["slug"]}`]({s["slug"]}/STYLE.md) | *{s["film"]}* |' for s in group]
+        out += [f'## {en}', '', '| Style | Folder | Our demo |', '|---|---|---|']
+        out += [f'| {s["en"]} | [`{s["slug"]}`]({s["slug"]}/STYLE.md) | *{s["film"]}* |' for s in group]
         out.append('')
     return '\n'.join(out)
 
 
 def style_list():
     """AGENTS.md, between <!-- style-list:start --> and <!-- style-list:end -->: the full list an agent shows a user who has not picked a style."""
-    out = [f'All {sum(1 for x in styles if x["stylemd"])} styles · 全部风格:', '']
-    for cn, en in cats:
-        group = [x for x in styles if x['cat'] == cn and x['stylemd']]
+    out = [f'All {sum(1 for x in styles if x["stylemd"])} styles:', '']
+    for en in cats:
+        group = [x for x in styles if x['cat'] == en and x['stylemd']]
         if not group: continue
-        names = ', '.join(s['en'] if s['cn'] == s['en'] else f'{s["cn"]} {s["en"]}' for s in group)
-        out.append(f'- **{cn} {en}** ({len(group)}): {names}')
+        names = ', '.join(s['en'] for s in group)
+        out.append(f'- **{en}** ({len(group)}): {names}')
     return '\n'.join(out) + '\n'
 
 

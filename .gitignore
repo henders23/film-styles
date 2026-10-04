@@ -2,20 +2,20 @@ node_modules/
 .venv/
 __pycache__/
 .DS_Store
-# 模型与大素材（运行说明里给下载地址）
+# Models and large assets (download links are in the run instructions)
 core/tts/*.onnx
 core/tts/*.bin
 core/assets/polyhaven/*.hdr
-# 渲染中间产物
+# Render intermediates
 styles/*/demo/out/
 styles/*/demo/voices/*.wav
 styles/*/demo/music/*.mp3
 styles/*/demo/music/*.wav
 styles/*/demo/music/*.npy
 styles/*/demo/mix.wav
-# 成片走 GitHub Releases
+# Finished films go to GitHub Releases
 styles/*/*.mp4
-# 2026-09-26 收录已有作品后补充
+# Added 2026-09-26 when existing works were imported
 styles/*/demo/out_*/
 styles/*/demo/chk/
 styles/*/demo/node_modules
@@ -24,31 +24,31 @@ styles/*/demo/tts/*.onnx
 styles/*/demo/tts/*.bin
 styles/*/demo/music.wav
 *.log
-# 喊词是输入素材（只能在 macOS 上近似重建），要提交
+# The shouted lines are input material (only approximately rebuildable on macOS): commit them
 !styles/game-show/demo/voices/*.wav
-# 赛事官方图，只作参考、不分发（片中标识怎么处理开源前再定）
+# Official event images: reference only, not redistributed (how to handle logos in the film was to be decided before open-sourcing)
 styles/pictogram-motion/demo/ref/
 styles/*/demo/music/src/
 
-# ---- 2026-09-26 GitHub 发布前补充 ----
-# 内部工作文件（不公开）
+# ---- Added 2026-09-26 before publishing to GitHub ----
+# Internal working files (not public)
 /promo/
 /batch/
 /TODO.md
 /STYLES.md
 styles/*/HANDOFF.md
-# 配乐分轨、混音、拟音：build.sh 会重新生成
+# Score stems, mixes, foley: build.sh regenerates them
 styles/*/demo/**/stems*/
 styles/*/demo/**/music_stems/
 styles/*/demo/**/mix*.wav
 styles/*/demo/audio/*.wav
 core/audio/*.wav
-# 大素材走 Releases 的 assets 包，用 sh tools/fetch.sh 下载（清单见 tools/assets.json）
+# Large assets ship in the Releases "assets" bundle; download with sh tools/fetch.sh (manifest: tools/assets.json)
 core/audio/instruments/
 # Demo fonts are not in git: they are free (mostly Google Fonts, OFL); each demo's CREDITS names them
 styles/*/demo/fonts/**/*.ttf
 styles/*/demo/fonts/**/*.otf
-# 发布暂存 / Pages 构建产物
+# Release staging / Pages build output
 /.release/
 /_site/
 
@@ -81,7 +81,7 @@ styles/*/demo/stills/*
 !styles/*/demo/stills/alt_*.jpg
 !styles/*/demo/stills/engine*.jpg
 
-# 用户自己的片子（agent 输出）
+# Users' own films (agent output)
 /films/
 
 
@@ -89,6 +89,6 @@ styles/*/demo/stills/*
 styles/*/PRODUCTION_LOG*
 styles/*/demo/PRODUCTION_LOG*
 
-# 宣传物料（发帖用海报、预告片、教程片），只留本地，不上传 GitHub
+# Promo material (posters, trailers, tutorials): local only, not pushed to GitHub
 /docs/social/
 

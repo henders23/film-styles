@@ -65,7 +65,6 @@ a{color:var(--gold)}
 .edition::before,.edition::after{content:"";height:1px;width:min(16vw,170px);background:linear-gradient(90deg,transparent,var(--gold))}
 .edition::after{transform:scaleX(-1)}
 .tagline{margin:22px auto 0;max-width:720px;font:italic 500 clamp(19px,2.3vw,25px)/1.4 var(--serif);color:var(--ink)}
-.tagline-cn{margin:8px auto 0;max-width:640px;font:500 14.5px/1.7 var(--cn);color:var(--soft)}
 .stats{display:flex;justify-content:center;flex-wrap:wrap;gap:14px 54px;margin:40px 0 0}
 .stat{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:120px}
 .stat .wreath{position:relative;width:112px;height:60px;display:grid;place-items:center;color:var(--gold)}
@@ -110,7 +109,7 @@ main{padding-bottom:40px;background:radial-gradient(1200px 700px at 50% 0, rgba(
 .cat-no{margin:0;font:600 11px/1 var(--caps);letter-spacing:.5em;color:var(--dim);text-transform:uppercase}
 .cat-head h2{margin:10px 0 0;font:700 clamp(22px,3.2vw,36px)/1.1 var(--caps);letter-spacing:.14em;text-transform:uppercase;
   background:var(--foil);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent}
-.cat-cn{margin:8px 0 0;font:500 14px/1.4 var(--cn);color:var(--soft)}
+.cat-count{margin:8px 0 0;font:500 14px/1.4 var(--cn);color:var(--soft)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:30px}
 
 /* ================= nominee card ================= */
@@ -132,12 +131,10 @@ main{padding-bottom:40px;background:radial-gradient(1200px 700px at 50% 0, rgba(
 .play span{position:absolute;right:10px;bottom:9px;font:600 11px/1 var(--caps);letter-spacing:.16em;color:var(--gold-hi);background:rgba(0,0,0,.6);padding:5px 7px}
 .plate{position:relative;z-index:3;display:flex;flex-direction:column;flex:1;padding:20px 26px 24px;text-align:center}
 .plate h3{margin:0;font:700 21px/1.2 var(--caps);letter-spacing:.08em;text-transform:uppercase;color:var(--gold-hi)}
-.plate .cn{margin:6px 0 0;font:500 14px/1.3 var(--cn);letter-spacing:.12em;color:var(--soft)}
 .for{margin:14px 0 0;font:italic 500 19px/1.3 var(--serif);color:var(--ink)}
 .for::before{content:"";display:block;width:34px;height:1px;margin:0 auto 12px;background:var(--gold)}
 .for em{font-weight:600}
 .line{margin:10px 0 0;font:500 16.5px/1.5 var(--serif);color:#dfd3bb}
-.line-cn{margin:6px 0 0;font:400 13px/1.65 var(--cn);color:var(--dim)}
 .uses{list-style:none;margin:16px 0 0;padding:0;display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
 .uses li{font:600 10.5px/1 var(--caps);letter-spacing:.12em;text-transform:uppercase;color:var(--gold);border:1px solid var(--line);padding:6px 9px}
 .links{display:flex;justify-content:center;gap:22px;margin-top:auto;padding-top:18px;font:600 11.5px/1 var(--caps);letter-spacing:.2em;text-transform:uppercase}
@@ -192,7 +189,6 @@ footer .fine-cn{margin:6px 0 0;font:400 13px var(--cn);color:var(--dim)}
 .feature .play i{width:92px;height:92px}
 .feature .play i::before{border-width:15px 0 15px 25px;margin-left:7px}
 .feature .blurb{max-width:760px;margin:28px auto 0;font:italic 500 clamp(18px,2.1vw,23px)/1.45 var(--serif);color:var(--ink)}
-.feature .blurb-cn{max-width:680px;margin:10px auto 0;font:500 14.5px/1.75 var(--cn);color:var(--soft)}
 .feature .links{margin-top:22px}
 @media (max-width:720px){.feature{padding:44px 0 56px}.feature .frame{padding:8px}.feature .play i{width:70px;height:70px}}
 
@@ -201,7 +197,7 @@ footer .fine-cn{margin:6px 0 0;font:400 13px var(--cn);color:var(--dim)}
   .wrap{padding:0 16px}
   .curtain{width:9vw}.beam{opacity:.35}
   .wordmark{font-size:16vw}
-  .tagline,.tagline-cn{padding:0 14px}
+  .tagline{padding:0 14px}
   .valance{height:52px}.fringe{top:22px}
   .marquee{padding:84px 30px 24px}
   .presents{font-size:10.5px;letter-spacing:.26em}
@@ -230,7 +226,6 @@ footer .fine-cn{margin:6px 0 0;font:400 13px var(--cn);color:var(--dim)}
     <h1 class="wordmark"><small>Lemo</small>Opuscar</h1>
     <p class="edition">The Nominees for Best Style · 2026</p>
     <p class="tagline">Every style is a reusable prompt, and a short film directed, drawn and scored entirely in code.</p>
-    <p class="tagline-cn">每个风格是一份可复用的提示词，外加一支完全用代码导演、作画、配乐的短片。</p>
     <a class="repo" href="{{REPO_URL}}" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span>Get the styles on GitHub</span></a>
     <div class="stats">
       <div class="stat"><div class="wreath"><svg><use href="#laurel"/></svg><b>{{N_ALL}}</b></div><span>Nominees</span></div>
@@ -244,21 +239,20 @@ footer .fine-cn{margin:6px 0 0;font:400 13px var(--cn);color:var(--dim)}
 
 
 <nav class="tabs" id="tabs"><div class="wrap">
-  <button data-f="feature" class="feat">Feature · Opuscar 98<small>特别放映</small></button>
-  <button data-f="all" class="on">All Categories<small>全部</small></button>
+  <button data-f="feature" class="feat">Feature · Opuscar 98</button>
+  <button data-f="all" class="on">All Categories</button>
   {{TABS}}
 </div></nav>
 
 <section class="feature" id="opuscar98"><div class="wrap">
-  <p class="kicker">Feature Presentation<small>特别放映</small></p>
+  <p class="kicker">Feature Presentation</p>
   <h2>Opuscar 98</h2>
   <p class="sub">98 Years of Best Picture · 1927 – 2025</p>
-  <div class="frame nominee-like" data-en="Opuscar 98" data-cn="98 年最佳影片" data-film="98 Years of Best Picture">
+  <div class="frame nominee-like" data-en="Opuscar 98" data-film="98 Years of Best Picture">
     <div class="screen"><img class="still" src="{{FEATURE_POSTER}}" alt="Opuscar 98 — 98 Years of Best Picture">
       <button class="play" type="button" data-src="{{FEATURE_SRC}}" data-poster="{{FEATURE_POSTER}}" aria-label="Play Opuscar 98"><i></i><span>{{FEATURE_DUR}}</span></button></div>
   </div>
   <p class="blurb">One Clawd walks through all 98 Best Picture winners, each one redrawn in a style that fits the film. Every frame, every note and every cut was written in code by Claude Opus 5.5.</p>
-  <p class="blurb-cn">一个 Clawd 走过 98 部最佳影片，每一部都换成贴合那部电影的画风。每一帧画面、每一个音符、每一刀剪辑，都是 Claude Opus 5.5 写代码做出来的。</p>
   <nav class="links"><a class="watch" href="#opuscar98" data-feature>Watch the film</a><a href="opuscar98/">Film page</a><a href="{{FEATURE_FULL}}" target="_blank" rel="noopener">Download · 1080p</a></nav>
 </div></section>
 
@@ -269,9 +263,8 @@ footer .fine-cn{margin:6px 0 0;font:400 13px var(--cn);color:var(--dim)}
 <footer>
   <p class="sig">LemoLab × Claude Opus 5.5</p>
   <p class="fine">Every frame on this page was rendered by the project's own code.</p>
-  <p class="fine-cn">页面上的每一帧，都是本项目的代码自己渲染的。</p>
   <a class="repo-link" href="{{REPO_URL}}" target="_blank" rel="noopener">github.com/{{REPO}}</a>
-  <p class="fine-cn">Official repository, by Lemomo (<a href="https://x.com/lemomo_ai" target="_blank" rel="noopener">@lemomo_ai</a>) · 官方仓库</p>
+  <p class="fine-cn">Official repository, by Lemomo (<a href="https://x.com/lemomo_ai" target="_blank" rel="noopener">@lemomo_ai</a>)</p>
 </footer>
 
 <div class="room" id="room" role="dialog" aria-modal="true" aria-label="Screening room">
@@ -303,7 +296,7 @@ show(document.querySelector(`#tabs button[data-f="${saved}"]`)?saved:'all');
 
 const room=document.getElementById('room'), vid=room.querySelector('video'), env=room.querySelector('.envelope');
 function screen(card,src,poster){
-  env.querySelector('h4').innerHTML=`${card.dataset.en}<small>${card.dataset.cn}</small>`;
+  env.querySelector('h4').textContent=card.dataset.en;
   env.querySelector('.f').textContent=`for “${card.dataset.film}”`;
   vid.poster=poster||''; vid.src=src;
   room.classList.add('on'); room.classList.remove('open');
