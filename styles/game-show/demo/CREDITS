@@ -18,7 +18,7 @@ Voices
 - macOS built-in system voices via the `say` command (Samantha, Fred, Zarvox, Junior, Kathy, Ralph, Superstar), pitch-shifted with ffmpeg (asetrate/atempo). 40 short English shouts listed in voices/lines*.txt. Apple's system voices are licensed for use on macOS; confirm terms before commercial redistribution (see STYLE.md §6).
 
 Music & sound
-- Original score and every sound effect synthesized in numpy/scipy: music.py (arrangement, event → SFX mapping, ducking, mix) + synth_lib.py (instruments & SFX, adapted from the earlier 胖橘案卷 project by the same author). No samples, no third-party music.
+- Original score and every sound effect synthesized in numpy/scipy: music.py (arrangement, event → SFX mapping, ducking, mix) + synth_lib.py (instruments & SFX, adapted from the earlier "Fat Orange Case Files" project by the same author). No samples, no third-party music.
 
 Software
 - Playwright-core 1.63 (Apache-2.0) driving Chrome Headless Shell; FFmpeg / libx264 / AAC; Python 3 + numpy + scipy.

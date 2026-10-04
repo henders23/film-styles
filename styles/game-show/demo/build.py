@@ -1,6 +1,6 @@
-# 组装 index.html = 通用框架头（frame_head.html：样式/滤镜/动画工具）+ 本集 main.js
-# 收录进 Lemo-Opuscar 时：原来从 ../cat-case/index.html 截取「// 猫（胖橘）」之前的部分，
-# 已把截出来的那段（标题已换成 AI 进化节拍）固化为 frame_head.html，不再依赖仓库外项目。
+# Assemble index.html = shared frame header (frame_head.html: styles/filters/animation helpers) + this episode's main.js
+# When added to Lemo-Opuscar: this used to cut the part of ../cat-case/index.html before its "// cat (fat orange)" comment;
+# that cut-out part (title already changed to this film's) is now frozen as frame_head.html, so nothing depends on projects outside the repo.
 import os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 head = open('frame_head.html', encoding='utf-8').read()

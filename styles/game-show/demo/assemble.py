@@ -1,4 +1,4 @@
-# 组装 main.js = main_v1.js 前 109 行（调色板/节拍/通用视觉，改 150 BPM、93 小节）+ main_v1 的角色库（robotDB … 舞台前）+ main_b.js（v2/v3 全部场景）
+# Assemble main.js = first 109 lines of main_v1.js (palette/beat/shared visuals, changed to 150 BPM, 93 bars) + main_v1's character library (robotDB … up to the stage) + main_b.js (all v2/v3 scenes)
 import os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 L = open('main_v1.js', encoding='utf-8').read().split('\n')

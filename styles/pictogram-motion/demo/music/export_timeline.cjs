@@ -1,5 +1,5 @@
-// 从剪辑表 edl.js 导出 music/timeline.json（配乐脚本 music.py 的输入）
-// 用法（在 demo/ 目录下）：node music/export_timeline.cjs
+// Export music/timeline.json from the EDL edl.js (input for the score script music.py)
+// Usage (from demo/): node music/export_timeline.cjs
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const here = __dirname;
 const sandbox = {};

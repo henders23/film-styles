@@ -1,4 +1,4 @@
-  // ================= REMIX：2026 年热点，全堆上来 =================
+  // ================= REMIX: 2026's hot topics, all piled on =================
   scene(at(SECT.rmx), at(SECT.rmx + 1), (g) => {
     bg(g, K.ol); const rays = raysEl(g, 24, '#333');
     const tt = chars(g, 'REMIX 2026!', { x: 960, y: 540, size: 230, family: F.round, weight: 700, fill: K.yellow, anchor: 'middle', stroke: K.red, sw: 26, ls: 8 });
@@ -7,7 +7,7 @@
     return (t) => { rays.setAttribute('transform', `translate(960 560) rotate(${t * 40})`); charsPop(tt, t, at(SECT.rmx), 0.03, 0.2, 120); charsPop(sub, t, at(SECT.rmx, 1), 0.03, 0.2, 40); };
   });
   { const r0 = SECT.rmx + 1, R = (bar, bt = 0) => at(r0 + bar, bt);
-  // 人形机器人（原点=脚底）
+  // Humanoid robot (origin = feet)
   function humanoid(parent, col = '#E8ECF4') {
     const g = el('g', {}, parent);
     const body = el('g', {}, g);
@@ -35,7 +35,7 @@
     dots(g, 'rgba(255,255,255,0.18)', 90, 10);
     el('rect', { x: 0, y: 880, width: 1920, height: 200, fill: 'rgba(0,0,0,0.16)' }, g);
     const BGC = ['#7FD8FF', '#FF8FB1', '#FFB870', '#9B8CFF', '#F3A27E', '#5BD68A', '#FF7A7A', K.yellow];
-    // 顶部 2026 月份时间轴
+    // 2026 month timeline at the top
     const ribbon = el('g', {}, g);
     el('rect', { x: 300, y: 36, width: 1320, height: 64, rx: 32, fill: K.ol }, ribbon);
     const MX = (m) => 360 + (m - 1) * 109;
@@ -44,7 +44,7 @@
     const marker = el('g', {}, ribbon);
     el('circle', { cx: 0, cy: 0, r: 30, fill: K.yellow, ...SO, 'stroke-width': 6 }, marker);
     txt(marker, '26', { x: 0, y: 11, 'font-size': 30, 'font-family': F.round, 'font-weight': 700, fill: K.ol, 'text-anchor': 'middle' });
-    // 标题条
+    // Title bar
     const lbl = el('g', {}, g);
     const lblBg = el('rect', { x: 0, y: -44, height: 88, rx: 44, fill: K.white, ...SO }, lbl);
     const lblT = txt(lbl, '', { x: 0, y: 18, 'font-size': 52, 'font-family': F.sans, 'font-weight': 900, fill: K.ol, 'text-anchor': 'middle' });
@@ -52,7 +52,7 @@
     const item = (i, m0, m1, label, build) => { const g2 = el('g', {}, g); const t0 = R(i * 2); items.push({ g: g2, i, m0, m1, label, t0, upd: build(g2, t0) }); };
     const plate = (p, text, col = K.ol) => { const w = measure(text, 60, F.sans, 900) + 60; el('rect', { x: -w / 2, y: 200, width: w, height: 90, rx: 45, fill: col, stroke: K.white, 'stroke-width': 6 }, p); txt(p, text, { x: 0, y: 265, 'font-size': 60, 'font-family': F.sans, 'font-weight': 900, fill: K.white, 'text-anchor': 'middle' }); };
 
-    // 1. 1月 CES：物理 AI —— 机械臂在“模拟世界”里逐拍叠方块
+    // 1. Jan CES: physical AI — a robot arm stacks blocks beat by beat in a "simulated world"
     item(0, 1, 1, '1月 · CES：「物理 AI」登场', (p, t0) => {
       const grid = el('g', { stroke: '#2BB5C9', 'stroke-width': 3, opacity: 0.8 }, p);
       for (let i = -6; i <= 6; i++) el('line', { x1: i * 40, y1: 60, x2: i * 90, y2: 190 }, grid);
@@ -79,7 +79,7 @@
       };
     });
 
-    // 2. 2月 马年春晚：四家人形机器人同台
+    // 2. Feb, Year of the Horse Spring Festival Gala: humanoid robots from four companies on one stage
     item(1, 2, 2, '2月 · 马年春晚：四家人形机器人同台', (p, t0) => {
       for (const sx of [-1, 1]) { const l = el('g', { transform: `translate(${sx * 400} -230)` }, p); el('line', { x1: 0, y1: -80, x2: 0, y2: -40, stroke: K.ol, 'stroke-width': 6 }, l); el('ellipse', { cx: 0, cy: 0, rx: 50, ry: 44, fill: K.red, ...SO }, l); el('rect', { x: -20, y: 40, width: 40, height: 14, fill: K.yellow, ...SO, 'stroke-width': 4 }, l); txt(l, '福', { x: 0, y: 16, 'font-size': 44, 'font-family': F.sans, 'font-weight': 900, fill: K.yellow, 'text-anchor': 'middle' }); }
       const bots = [-315, -105, 105, 315].map((x, i) => { const w = el('g', {}, p); return { w, h: humanoid(w, ['#E8ECF4', '#FFD6A5', '#CDE7FF', '#FFC8DD'][i]), x }; });
@@ -97,7 +97,7 @@
       };
     });
 
-    // 3. 2月 国产模型周调用量首超美国
+    // 3. Feb: Chinese models' weekly usage overtakes the US for the first time
     item(2, 2, 2, '2月 · 国产模型周调用量首超美国', (p, t0) => {
       el('line', { x1: -360, y1: 160, x2: 360, y2: 160, stroke: K.ol, 'stroke-width': 8 }, p);
       const bars = [[-120, K.red, '中国', 4.12], [120, K.blue, '美国', 2.94]].map(([x, col, name, v]) => { const bg2 = el('g', { transform: `translate(${x} 160)` }, p); const r = el('rect', { x: -80, y: 0, width: 160, height: 0, rx: 16, fill: col, ...SO }, bg2); txt(bg2, name, { x: 0, y: 60, 'font-size': 50, 'font-family': F.sans, 'font-weight': 900, fill: K.ol, 'text-anchor': 'middle' }); const val = gtext(bg2, '', 0, 0, 58, { family: F.round, weight: 700, fill: K.white, sw: 10 }); return { r, val, v }; });
@@ -116,7 +116,7 @@
       };
     });
 
-    // 4. Gemini：3.1 → 3.8
+    // 4. Gemini: 3.1 → 3.8
     item(3, 2, 9, 'Gemini：从 3.1 一路升到 3.8', (p, t0) => {
       const w = el('g', {}, p); const gm = CAST.gemini(w);
       const disp = el('g', {}, p);
@@ -140,7 +140,7 @@
       };
     });
 
-    // 5. 6月 Claude Sonnet 5：默认模型，自己规划、自己用工具
+    // 5. Jun Claude Sonnet 5: default model, plans and uses tools on its own
     item(4, 6, 6, '6月 · Claude Sonnet 5：成为默认模型', (p, t0) => {
       const w = el('g', {}, p); const cl = CAST.claude(w, 'Sonnet 5');
       const tools = ['browser', 'term', 'check', 'gear'].map((k, i) => {
@@ -170,7 +170,7 @@
       };
     });
 
-    // 6. 7月 WAIC：超 200 家具身智能企业
+    // 6. Jul WAIC: over 200 embodied-AI companies
     item(5, 7, 7, '7月 · WAIC：超 200 家具身智能企业', (p, t0) => {
       const sign = el('g', {}, p); el('rect', { x: -260, y: -60, width: 520, height: 120, rx: 20, fill: K.ol, stroke: K.white, 'stroke-width': 6 }, sign); txt(sign, 'WAIC 2026', { x: 0, y: 24, 'font-size': 70, 'font-family': F.round, 'font-weight': 700, fill: K.yellow, 'text-anchor': 'middle' });
       const walkers = []; const cols = ['#E8ECF4', '#FFD6A5', '#CDE7FF', '#FFC8DD', '#D8F8B7', '#E4D4FF'];
@@ -193,7 +193,7 @@
       };
     });
 
-    // 7. 8月 DeepSeek V4-Pro · 9月 GPT-6 Astra
+    // 7. Aug DeepSeek V4-Pro · Sep GPT-6 Astra
     item(6, 8, 9, '8月 DeepSeek V4-Pro · 9月 GPT-6 Astra', (p, t0) => {
       const ww = el('g', {}, p); const wh = CAST.deepseek(ww);
       const v4 = el('g', {}, p); gtext(v4, 'V4', 0, 0, 120, { family: F.round, weight: 700, fill: K.whale, stroke: K.white, sw: 14 });
@@ -221,7 +221,7 @@
       };
     });
 
-    // 终场
+    // Finale
     const big = el('g', {}, g);
     gtext(big, '2026', 0, 0, 300, { family: F.round, weight: 700, fill: K.white, sw: 34 });
     const cont = el('g', {}, g); gtext(cont, '还没唱完 →', 0, 0, 100, { fill: K.yellow, sw: 18 });
@@ -235,17 +235,17 @@
       bgR.setAttribute('fill', BGC[idx]);
       rays.setAttribute('transform', `translate(960 560) rotate(${t * 18})`);
       const finale = t >= R(14);
-      // 时间轴
+      // Timeline
       const it = items[Math.min(idx, 6)];
       const pm = finale ? 9 : lerp(it.m0, it.m1, E.io(seg(t, it.t0, it.t0 + 2 * BARL)));
       marker.setAttribute('transform', `translate(${MX(pm)} 68) scale(${1 + 0.15 * Math.exp(-frac(t) * 8)})`);
       fillBar.setAttribute('width', MX(pm) - 318);
-      // 标题
+      // Title
       const text = finale ? '2026 · 未完待续' : it.label;
       lblT.textContent = text; const lw = measure(text, 52, F.sans, 900) + 80;
       lblBg.setAttribute('x', -lw / 2); lblBg.setAttribute('width', lw);
       tf(lbl, 960, 185, E.back(seg(t, finale ? R(14) : it.t0, (finale ? R(14) : it.t0) + 0.22)), idx % 2 ? 1.5 : -1.5);
-      // 各条目：主舞台 2 小节 → 缩小停到底部
+      // Each item: 2 bars on the main stage → shrink and park at the bottom
       items.forEach(o => {
         const t1 = o.t0 + 2 * BARL;
         if (t < o.t0 - 0.2) { op(o.g, 0); return; }

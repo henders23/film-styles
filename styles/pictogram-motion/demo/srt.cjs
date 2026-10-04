@@ -1,5 +1,5 @@
-// 字卡字幕：片子无旁白，这里把画面上的标题字卡按剪辑表导出成 .srt（英日版文字）
-// 用法（在 demo/ 目录下）：node srt.cjs [../pictogram-motion.srt]
+// Title-card subtitles: the film has no voice-over, so this exports the on-screen title cards from the EDL as .srt (EN-JP text)
+// Usage (from demo/): node srt.cjs [../pictogram-motion.srt]
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const sb = {};
 vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'edl.js'), 'utf8'), sb);
@@ -7,7 +7,7 @@ const E = sb.EDL, B = E.BEAT;
 const cues = [];
 const cue = (t0, t1, text) => cues.push({ t0, t1, text });
 
-// 片头（intro 48 拍，见 scenes.js introScene）
+// Intro (intro is 48 beats, see scenes.js introScene)
 cue(1.0, 6.4, '2026 · AICHI – NAGOYA · JAPAN');
 cue(6.4 + 1.0 * B, 12.8, 'THE 20TH ASIAN GAMES\nAICHI-NAGOYA 2026 · 第20回アジア競技大会');
 cue(12.8, 14.4, '43 SPORTS · 競技');
