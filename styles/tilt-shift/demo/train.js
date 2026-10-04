@@ -1,4 +1,4 @@
-// 通勤火车：6 节车厢（白车身 + 色带 + 车窗 + 车门 + 受电弓），沿铁轨 x 方向
+// commuter train: 6 carriages (white body + stripe + windows + doors + pantograph), along the rails in x
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RAIL } from './city.js';
@@ -26,7 +26,7 @@ export function makeTrain(scene, stripe = '#e8542f') {
     const skirt = new THREE.Mesh(new THREE.BoxGeometry(CAR_L - 1, .6, 2.6), new THREE.MeshStandardMaterial({ color: '#3a3f45', roughness: .7 })); skirt.position.y = .6;
     for (const ax of [-6.5, 6.5]) { const ac = new THREE.Mesh(new THREE.BoxGeometry(2.4, .45, 1.6), roofM); ac.position.set(ax, 4.5, 0); g.add(ac); }
     g.add(body, roof, skirt);
-    if (i === 0 || i === NCARS - 1) {   // 车头：斜面驾驶窗
+    if (i === 0 || i === NCARS - 1) {   // cab: raked windscreen
       const nose = new THREE.Mesh(new RoundedBoxGeometry(1.4, 3.2, 3, 2, .4), new THREE.MeshPhysicalMaterial({ color: stripe, roughness: .3, clearcoat: .8 }));
       nose.position.set((i === 0 ? 1 : -1) * (CAR_L / 2 + .3), 2.4, 0); g.add(nose);
       const win = new THREE.Mesh(new THREE.BoxGeometry(.2, 1.1, 2.4), new THREE.MeshPhysicalMaterial({ color: '#1a222b', roughness: .1, clearcoat: 1 }));
@@ -38,7 +38,7 @@ export function makeTrain(scene, stripe = '#e8542f') {
   }
   return {
     cars,
-    // head = 车头前端 x；z = 轨道
+    // head = x of the cab front; z = track
     place(head, z = RAIL.zA, dir = 1) {
       cars.forEach((g, i) => { g.position.set(head - dir * (CAR_L / 2 + i * (CAR_L + CAR_GAP)), .55, z); g.rotation.y = dir > 0 ? 0 : Math.PI; g.visible = true; });
     },

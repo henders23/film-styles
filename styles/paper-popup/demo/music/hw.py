@@ -7,9 +7,9 @@ for f in ['Heartwarming.wav', 'Dreamy_Flashback.wav']:
     st = librosa.onset.onset_strength(y=y, sr=sr)
     tempo, b = librosa.beat.beat_track(y=y, sr=sr, units='time')
     print(f, 'len', len(y)/sr, 'end', round(end,2), 'tempo', tempo)
-    # 每秒响度
+    # loudness per second
     print(' db/s', ' '.join(f"{int(t)}:{db[(tt>=t)&(tt<t+1)].mean():.0f}" for t in range(0, int(len(y)/sr), 2)))
-    # 候选起点：end-27.7 附近的强起音
+    # candidate start: strong onset near end-27.7
     tgt = end - 27.7
     near = [o for o in on if abs(o - tgt) < 4]
     print(' onsets near', round(tgt,2), [round(o,2) for o in near])

@@ -1,5 +1,5 @@
-// 字幕：模仿录像带时代的隐藏式字幕（Line 21 / CEA-608）——等宽白字、每行一条黑底块、一行最多 32 字符
-// 广播 = "[PA]" 前缀；摄像者的气声 = 斜体；环境声用方括号描述（SDH 习惯），包括全片最安静的那一秒 "[SILENCE]"
+// subtitles: imitate tape-era closed captions (Line 21 / CEA-608) - white monospace, a black box per line, at most 32 characters a line
+// PA = "[PA]" prefix; the camera operator's whisper = italics; ambient sound described in brackets (SDH convention), including the film's quietest second "[SILENCE]"
 import { T, LINES } from './story.js';
 
 const COLS = 32;
@@ -8,11 +8,11 @@ function wrap(s) {
   for (const w of s.split(' ')) { const t = cur ? cur + ' ' + w : w; if (t.length > COLS && cur) { out.push(cur); cur = w; } else cur = t; }
   if (cur) out.push(cur); return out;
 }
-// dur = voices/dur.json；words = voices/words.json（切分长句用）
+// dur = voices/dur.json; words = voices/words.json (for splitting long sentences)
 export function buildCaps(dur, words) {
   const L = Object.fromEntries(LINES.map(l => [l.id, l.t]));
   const end = (id, pad = .65, min = 1.9) => L[id] + Math.max(min, (dur[id] || 2) + pad);
-  // 按词时间戳找到 splitWord 开始的时刻
+  // find when splitWord starts from the word timestamps
   const at = (id, word, fallback) => {
     const w = (words && words[id]) || []; const k = w.findIndex(x => x[0].toLowerCase().replace(/[^a-z]/g, '') === word);
     return k >= 0 ? L[id] + w[k][1] - .05 : L[id] + fallback;
@@ -41,7 +41,7 @@ export function buildCaps(dur, words) {
   return C;
 }
 
-// 画在 1920×1080 叠加层上，限定在 4:3 画幅内（x ∈ [240, 1680]）
+// drawn on the 1920×1080 overlay, kept inside the 4:3 frame (x ∈ [240, 1680])
 export function drawCaps(x, caps, t) {
   const c = caps.find(c => t >= c.t0 && t < c.t1); if (!c) return;
   const fs = 42, cw = fs * .6, rh = 54, cx = 960;

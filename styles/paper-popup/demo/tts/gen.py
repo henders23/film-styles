@@ -1,5 +1,5 @@
 import soundfile as sf, json, numpy as np, sys, os
-# 模型用仓库共享的 core/tts/；输出目录默认 demo/voices/，VO_DIR=... 可改（校验时别覆盖正式配音）
+# model comes from the repo's shared core/tts/; output defaults to demo/voices/, override with VO_DIR=... (don't overwrite the final voices when checking)
 HERE = os.path.dirname(os.path.abspath(__file__))
 CORE = os.path.join(HERE, '../../../../core/tts')
 VO = os.environ.get('VO_DIR', os.path.join(HERE, '../voices')); os.makedirs(VO, exist_ok=True)

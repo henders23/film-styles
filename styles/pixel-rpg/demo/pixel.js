@@ -1,4 +1,4 @@
-// 像素基础：320×180 原生画布、ENDESGA-32 调色板、4×4 Bayer 抖动、5×7 位图字体、字符串精灵
+// pixel basics: 320×180 native canvas, ENDESGA-32 palette, 4×4 Bayer dither, 5×7 bitmap font, string sprites
 export const W = 320, H = 180, SCALE = 6;
 
 export const PAL = {
@@ -26,7 +26,7 @@ export function makeCtx(canvas) {
   return { g, lo, o, rect, px, present };
 }
 
-// 抖动竖向渐变：cols 为从上到下的色带
+// dithered vertical gradient: cols = colour bands top to bottom
 export function ditherV(k, x0, y0, w, h, cols) {
   const n = cols.length - 1;
   for (let y = 0; y < h; y++) {
@@ -35,13 +35,13 @@ export function ditherV(k, x0, y0, w, h, cols) {
   }
 }
 
-// 字符串精灵：每个字符映射到调色板，'.' 透明；flip 水平翻转
+// string sprite: each character maps to the palette, '.' transparent; flip = mirror horizontally
 export function sprite(k, rows, map, x0, y0, flip = false) {
   const w = rows[0].length;
   rows.forEach((r, y) => { for (let x = 0; x < w; x++) { const ch = r[x]; if (ch === '.' || ch === ' ') continue; k.px(x0 + (flip ? w - 1 - x : x), y0 + y, map[ch]); } });
 }
 
-// 5×7 位图字体（每行 5 bit）
+// 5×7 bitmap font (5 bits per row)
 const F = {
   A: [14, 17, 17, 31, 17, 17, 17], B: [30, 17, 17, 30, 17, 17, 30], C: [14, 17, 16, 16, 16, 17, 14], D: [28, 18, 17, 17, 17, 18, 28],
   E: [31, 16, 16, 30, 16, 16, 31], F: [31, 16, 16, 30, 16, 16, 16], G: [14, 17, 16, 23, 17, 17, 15], H: [17, 17, 17, 31, 17, 17, 17],

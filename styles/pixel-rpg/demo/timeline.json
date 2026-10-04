@@ -1,5 +1,5 @@
 {
-  "_doc": "《The Last Save Point》唯一时间线（秒）。画面 story.js、配乐 music/score.py、混音 mix.py 都读这份。改时间只改这里。",
+  "_doc": "The single timeline for The Last Save Point (seconds). Picture story.js, score music/score.py and mix mix.py all read it. Change timings here only.",
   "dur": 54.5,
   "vo": {
     "vo1": {"t": 5.0, "expr": "wistful"},
