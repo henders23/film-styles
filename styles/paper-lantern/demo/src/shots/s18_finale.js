@@ -1,4 +1,4 @@
-// S18 · 片尾：灯箱里是“两扇窗一个月亮”，镜头拉出到桌前；“中秋快乐”
+// S18 · Finale: "two windows, one moon" in the lightbox, camera pulls out to the table; "Happy Mid-Autumn"
 import * as THREE from 'three';
 import { sheet, text } from '../paper.js';
 import { FONT } from '../art.js';
@@ -12,7 +12,7 @@ export async function build(E) {
   const M = mutualSet(S, E);
   M.arcs.material.userData.u.uClip.value.set(0, 0, 100, 0);
   const title = S.add(sheet({ U: S.U, w: .28, h: .07, x: 0, y: -.005, z: -.092, trans: .3, shadow: false, recv: false, finish: { rim: .6 }, draw: x => { text(x, '中秋快乐', 0, 0, .046, FONT.brush, { fill: '#f3d998' }); x.fillStyle = '#b3302a'; x.fillRect(.105, -.022, .014, .014); text(x, '团圆', .112, -.015, .0055, FONT.brush, { fill: '#f6e3c3' }); } }));
-  // 署名：灯箱底部前景坡上的一条金色剪纸字（和「中秋快乐」同一种纸），标题落定后淡入
+  // sign-off: a strip of gold paper-cut text on the foreground slope at the bottom of the box (same paper as the "Happy Mid-Autumn" title), fades in after the title settles
   const sign = S.add(sheet({ U: S.U, w: .26, h: .02, x: 0, y: -.1515, z: -.024, trans: .3, shadow: false, recv: false, finish: { rim: .5 }, draw: x => text(x, 'LemoLab × Claude Opus 5.5', 0, 0, .0115, FONT.song, { fill: '#f3d998', weight: 600 }) }));
   const R = await lightbox(S, E, { spill: 7 });
   const tT = E.cue('L25') - .15, tOut = E.cue('L24') - .2;

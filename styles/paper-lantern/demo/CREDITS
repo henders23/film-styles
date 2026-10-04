@@ -1,4 +1,4 @@
-一个月饼的相思 · A Mooncake's Longing — Paper-cut Lightbox (Lemo-Opuscar demo)
+A Mooncake's Longing — Paper-cut Lightbox (Lemo-Opuscar demo)
 LemoLab × Claude Opus 5.5
 
 All paper layers, figures, props, calligraphy layouts and the lightbox are drawn by code in this folder
@@ -30,6 +30,6 @@ Voice: Microsoft Edge neural TTS voice zh-CN-XiaoxiaoNeural, generated with the 
 Speech check / word timings: faster-whisper (MIT) with the Systran faster-whisper-medium model (MIT).
 Sound effects: synthesized in mix.py (no samples).
 
-Texts quoted: 苏轼《水调歌头·明月几时有》(Song dynasty); 田汝成《西湖游览志余》(Ming dynasty) — public domain.
+Texts quoted: Su Shi, "Shuidiao Getou · When Will the Bright Moon Appear" (Song dynasty); Tian Rucheng, "Xihu Youlan Zhiyu" (Ming dynasty) — public domain.
 
 Software: three.js (MIT), playwright-core (Apache-2.0), FFmpeg (LGPL/GPL).

@@ -2,7 +2,7 @@
 
 One example among many. Don't reuse its story, arc, shots, props or timings.
 
-Demo: *一个月饼的相思 · A Mooncake's Longing* (121.8 s) · `paper-lantern.mp4` · source in [`demo/`](demo/) · engine: three.js 0.170 (WebGL, SSAA 2×, VSM soft shadows, custom DoF + bloom compositor), Canvas2D-drawn paper layers, headless Chrome frame capture.
+Demo: *A Mooncake's Longing* (Chinese-language film) (121.8 s) · `paper-lantern.mp4` · source in [`demo/`](demo/) · engine: three.js 0.170 (WebGL, SSAA 2×, VSM soft shadows, custom DoF + bloom compositor), Canvas2D-drawn paper layers, headless Chrome frame capture.
 
 
 **The demo narration is Mandarin Chinese** (edge-tts `zh-CN-XiaoxiaoNeural`) with Chinese subtitles. The library default is English with Kokoro (`core/tts/`); "Score structure" and "Engine reference" show how to switch. The demo runs 2 minutes; 45–120 s all work in this style.
@@ -22,7 +22,7 @@ How the demo used the medium's powers:
 | **Paper text** | Titles, letters and poems are paper too: vertical brush calligraphy on a cut strip, revealed column by column, with a red seal. |
 | **The box itself** | Pulling out to the real table at the end says "this was a keepsake / a story told at home". |
 
-**Story shape (proven in the demo):** room → lamp on → push into the box, title → origin (grandma's kitchen, the mooncake is pressed) → a bit of culture (a Ming-dynasty scroll quote) → the absence (an empty seat) → the journey (train across layered mountains, a myth told on the way, a box passing the other way) → arrival in the far city → the letter → **the twist: the other box was going the other way** (mutual longing — two windows, one moon) → a classical poem → pull out of the box, "中秋快乐".
+**Story shape (proven in the demo):** room → lamp on → push into the box, title → origin (grandma's kitchen, the mooncake is pressed) → a bit of culture (a Ming-dynasty scroll quote) → the absence (an empty seat) → the journey (train across layered mountains, a myth told on the way, a box passing the other way) → arrival in the far city → the letter → **the twist: the other box was going the other way** (mutual longing — two windows, one moon) → a classical poem → pull out of the box, "Happy Mid-Autumn".
 
 Adapting any topic: find the **two places** and the **one light** they share (a moon, a lighthouse, a window). Build each place as a layer stack; build one travel sequence between them; end with both lit at once.
 
@@ -34,7 +34,7 @@ Adapting any topic: find the **two places** and the **one light** they share (a 
 | In-box shots | Nearly frontal, slow dolly in/out (`aim(cam, [px,py,pz, tx,ty,tz], t)`), hand-held micro-drift `hand ≈ .0006 m`. Aperture 12–26 (in `post()`), focus on the story layer so foreground reeds and back mountains soften. |
 | Top-down inserts | The mooncake press and the open gift box are shot as flat top-down layer stacks (same engine, different set). |
 | Train | Lateral travel: layers scroll at speeds proportional to depth (parallax). |
-| Ending | Push inside the box, then a pull back out to the table (z 0.5 → 1.08), tea set enters frame, title 「中秋快乐」 fades in inside the box, credits under it, 1.2 s fade to black. |
+| Ending | Push inside the box, then a pull back out to the table (z 0.5 → 1.08), tea set enters frame, title "Happy Mid-Autumn" fades in inside the box, credits under it, 1.2 s fade to black. |
 
 Motion as built in the demo:
 
@@ -42,15 +42,15 @@ Motion as built in the demo:
 - **Jointed figures**: a body sheet + a separate arm sheet anchored at the shoulder (`GRAN_SHOULDER`, `GIRL_SHOULDER`, `SUSHI_SHOULDER` in `people.js`); animate `rotation.z` only.
 - **Light cues are the big motion**: lamp-on sequence in S01 — moon (0.5–3.2 s) → sky → each layer's translucency staggered by 0.42 s → key light → windows → lanterns flicker (`1 + .06·sin(7.3t)·sin(3.1t)`).
 - **Text reveal**: paper strips grow from their anchor edge (`reveal()` in `s13_note.js` scales the mesh *and* the texture repeat so glyphs are not squashed), timed to the spoken word.
-- **Hard action beats land on whisper word times**: the wooden mould slams on 「啪」(`E.word('L04', 13)`), the 「圆」 character flashes on its word, the light arcs grow from 「互」.
+- **Hard action beats land on whisper word times**: the wooden mould slams on the "pa" (slap) word (`E.word('L04', 13)`), the "yuan" (round) character flashes on its word, the light arcs grow from "hu" (mutual).
 - **Transitions**: 0.5–1.2 s dissolves between shots (`in: { type: 'dissolve', dur }`), an `iris` mode exists (circular wipe from `center`). The signature transition is a **near-plane auspicious-cloud curtain** (`cloudCurtain()` in `s17_sushi.js`) closing over the last 1.2 s of a shot and opening on the next — the two halves must meet exactly at their front edges.
 
 ## Score structure
 
 **Voice (demo, Mandarin):** `edge-tts`, voice `zh-CN-XiaoxiaoNeural`, rate `+10%`, pitch `-2Hz` (`demo/tts.py`); per-line `rate` overrides in `script.json` (L01 `+5%`, quoted letters `+2%`, the poem L23 **`-12%`**, closing line `-6%`). Output is trimmed at 2 % of peak (20 ms pre-roll, 120 ms tail) → 48 kHz mono `vo/<id>.wav` + `vo/dur.json`.
-- **Polyphonic characters**: feed TTS a homophone via a `say` field and keep the real text for subtitles: 「相思的"相"」→ `say: 原来，相思的香，是互相的香。` (TTS otherwise reads xiàng).
-- **Proof**: `demo/asr.py` (faster-whisper **medium**, zh) prints OK/DIFF per line; DIFFs that are homophones or numerals (八月十五 → 8月15, 她 → 他) are fine — listen to the rest.
-- **Word timings**: `demo/words.py <ids…>` → `vo/words.json` (whisper word timestamps). Shots read them via `E.word(id, k)`; **k is a whisper token index, not a character index** (whisper groups 「我们」 as one token) — print the list and count.
+- **Polyphonic characters**: feed TTS a homophone via a `say` field and keep the real text for subtitles: the "xiang" (mutual) of "xiangsi" (longing) is written in `say` as its homophone "xiang" (fragrance) (TTS otherwise reads xiàng).
+- **Proof**: `demo/asr.py` (faster-whisper **medium**, zh) prints OK/DIFF per line; DIFFs that are homophones or numerals (Chinese numerals → digits, "she" → "he") are fine — listen to the rest.
+- **Word timings**: `demo/words.py <ids…>` → `vo/words.json` (whisper word timestamps). Shots read them via `E.word(id, k)`; **k is a whisper token index, not a character index** (whisper groups "women" (we) as one token) — print the list and count.
 
 **Voice (English, library default):** write `lines.json` with `{id, text, voice, speed}`, run `core/tts/tts.py` (Kokoro, e.g. `bf_emma` / `af_heart`, speed ≈ .9) into `demo/vo/`, then `core/tts/asr_check.py` which writes `vo/dur.json` and a compatible `vo/words.json` (English word indices). Put the same ids/text into `script.json`. See "Switching to English" under Engine reference for the subtitle-split change.
 
@@ -67,10 +67,10 @@ Motion as built in the demo:
 |---|---|---|---|
 | −.135 | sky gradient (unlit, `skyPanel`) + stars | `#0a1330 → #172a58 → #2e4478 → #43598a` | — |
 | −.125 | moon disc + additive halo | `#fffaf0 / #fff0cf / #f7dca4` | — |
-| −.112 | auspicious clouds (祥云) | `#c3cbe8` | .9 |
+| −.112 | auspicious clouds (xiangyun) | `#c3cbe8` | .9 |
 | −.098 | far karst mountains, carved contour slits | `#6a86c2` | .7 |
 | −.080 | mid mountains | `#3f5a92` | .45 |
-| −.062 | village (江南 houses) + emissive windows | `#5a70a6` walls / `#1b284f` roofs, glow `#ffb862` | .25 |
+| −.062 | village (Jiangnan houses) + emissive windows | `#5a70a6` walls / `#1b284f` roofs, glow `#ffb862` | .25 |
 | −.046 | river + moon trail (emissive) | `#22325e`, trail `#e9cf96` | .3 |
 | −.030 | osmanthus tree + bridge, emissive blossoms | `#17224a`, flowers `#d9a24a` | .12 |
 | −.014 | foreground bank + reeds | `#0e1532` | .05 |
@@ -90,11 +90,11 @@ Rule: **back layers bright + translucent, front layers dark + opaque**. Interior
 
 ## Titles, subtitles & end card
 
-- Burned-in DOM subtitle (`#sub` in `index.html`): Noto Serif SC 500, 40 px, `#fbf3e4`, letter-spacing .06em, 74 px from the bottom, soft black shadow; fades in 0.15 s before the line, out 0.3 s after. Lines longer than 21 characters split at the comma nearest the middle; trailing punctuation is dropped and inner `，。：` become full-width spaces.
+- Burned-in DOM subtitle (`#sub` in `index.html`): Noto Serif SC 500, 40 px, `#fbf3e4`, letter-spacing .06em, 74 px from the bottom, soft black shadow; fades in 0.15 s before the line, out 0.3 s after. Lines longer than 21 characters split at the comma nearest the middle; trailing punctuation is dropped and inner full-width commas, full stops and colons become full-width spaces.
 - **Lines that appear as paper in the picture are not subtitled** (`"sub": false` in `script.json`): grandma's letter (L17) and the poem (L23). Don't show the same words twice.
-- Title: vertical Ma Shan Zheng on a paper strip inside the box (「一个月饼 / 的相思」) with a red seal 「中秋」, fading in after the second line.
-- End card: 「中秋快乐」 paper title inside the box + red seal 「团圆」; the credit block (`#credit`, 19 px, two lines: music / assets / fonts) fades in 0.6 s after the last line.
-- **Sign-off (this library's demo only):** our demo's end card carries **"LemoLab × Claude Opus 5.5"** as a **paper-cut strip inside the lightbox**, not as overlay text: `sign` sheet in `src/shots/s18_finale.js` — `w .26, h .02`, centred at `y −.1515` on the dark foreground bank, `z −.024` (in front of the bank layer, near the final focus plane), `text(…, .0115, FONT.song, { fill: '#f3d998', weight: 600 })`, `trans .3`, `shadow/recv: false`. It fades in over `tT + 1.0 → tT + 2.0` (1 s after 「中秋快乐」 starts, ≈116.6–117.6 s) and stays to the end, so it reads as part of the lamp while the credit block sits on the table below. It belongs to the library's own demos: a user's film carries no LemoLab credit, no strip like this and no copy of this end card.
+- Title: vertical Ma Shan Zheng on a paper strip inside the box (the two-column film title) with a red seal "Mid-Autumn", fading in after the second line.
+- End card: "Happy Mid-Autumn" paper title inside the box + red seal "Reunion"; the credit block (`#credit`, 19 px, two lines: music / assets / fonts) fades in 0.6 s after the last line.
+- **Sign-off (this library's demo only):** our demo's end card carries **"LemoLab × Claude Opus 5.5"** as a **paper-cut strip inside the lightbox**, not as overlay text: `sign` sheet in `src/shots/s18_finale.js` — `w .26, h .02`, centred at `y −.1515` on the dark foreground bank, `z −.024` (in front of the bank layer, near the final focus plane), `text(…, .0115, FONT.song, { fill: '#f3d998', weight: 600 })`, `trans .3`, `shadow/recv: false`. It fades in over `tT + 1.0 → tT + 2.0` (1 s after "Happy Mid-Autumn" starts, ≈116.6–117.6 s) and stays to the end, so it reads as part of the lamp while the credit block sits on the table below. It belongs to the library's own demos: a user's film carries no LemoLab credit, no strip like this and no copy of this end card.
 - `paper-lantern.srt` holds all 25 lines (including the two in-picture ones) at their spoken times.
 
 ## Pitfalls we hit (demo record)
@@ -105,7 +105,7 @@ Rule: **back layers bright + translucent, front layers dark + opaque**. Interior
 - **Near-plane cloud curtain**: compute the closing position so the two curtains' **front edges** touch (`±.035` offset in `s16_mutual.js`), otherwise a slit of the old shot shows through.
 - **Layers bigger than the cavity** poke through the wooden frame in room shots — keep full-bleed sheets ≤ `.558 × .328`.
 - **Grade uniforms were sticky (fixed 2026-09-26)**: v1 of `Pipe.final()` only wrote `lift`/`gain` when a shot's `grade()` returned them, so a shot without them inherited the previous shot's values and the result depended on which frame a render worker started on — the first release (`paper-lantern_v1.mp4`) had visible grade pops at the worker boundaries 60.9 s (S09) and 101.5 s (S16). Now every missing grade key falls back to `GRADE0` (`post.js`: lift `[0, .005, .018]` cool night default, gain `[1.03, 1, .95]`), so renders are identical for any worker count. Night exteriors rely on the defaults; interiors must return their warm `lift` explicitly (S08 was fixed this way).
-- Whisper medium mishears Chinese homophones (八月 → 8月, 她 → 他, 婵娟 → 禅绢); judge DIFFs by ear, not by string match.
+- Whisper medium mishears Chinese homophones (numerals → digits, "she" → "he", "chanjuan" (the moon) → a same-sounding word); judge DIFFs by ear, not by string match.
 - Headless Chrome must run with GPU flags (`--use-angle=gl --enable-gpu --ignore-gpu-blocklist`, `render/browser.mjs`); SwiftShader is ~6× slower.
 
 ## Build notes
@@ -213,4 +213,4 @@ export function build(E) {
 }
 ```
 
-**Switching to English**: in `main.js` the subtitle splitter assumes Chinese (`st.length > 21`, split on `[，。：]`, punctuation → full-width space). For English change it to split at the `, ` nearest the middle when longer than ~42 characters and keep punctuation; set `#sub` to a Latin serif (e.g. add an OFL font such as Cormorant to `fonts/`) at ~38 px. `E.word(id, k)` then counts English words. Everything else (timeline, mix, render) is language-agnostic.
+**Switching to English**: in `main.js` the subtitle splitter assumes Chinese (`st.length > 21`, split on full-width comma/full stop/colon, punctuation → full-width space). For English change it to split at the `, ` nearest the middle when longer than ~42 characters and keep punctuation; set `#sub` to a Latin serif (e.g. add an OFL font such as Cormorant to `fonts/`) at ~38 px. `E.word(id, k)` then counts English words. Everything else (timeline, mix, render) is language-agnostic.
