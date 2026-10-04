@@ -1,8 +1,8 @@
-// 用法（任意目录均可运行，脚本会先 chdir 到 demo/）：
-//   node render.mjs stills 1.9 3.1 ...   → stills/t_*.png（OUT=dir 可改输出目录）
+// Usage (runs from any directory; the script chdirs to demo/ first):
+//   node render.mjs stills 1.9 3.1 ...   → stills/t_*.png (OUT=dir changes the output folder)
 //   node render.mjs events               → events.json
-//   node render.mjs video [workers]      → out/seg_<w>.mp4 + out/list.txt（再跑 sh mux.sh 合成 ../watercolor.mp4）
-//   node render.mjs part t0 t1 out.mp4   → 只渲 [t0,t1) 一段（单 worker，局部返修用）
+//   node render.mjs video [workers]      → out/seg_<w>.mp4 + out/list.txt (then run sh mux.sh to build ../watercolor.mp4)
+//   node render.mjs part t0 t1 out.mp4   → render only [t0,t1) (single worker, for local fixes)
 import { chromium } from 'playwright-core';
 import { spawn } from 'child_process';
 import fs from 'fs';
@@ -12,7 +12,7 @@ import { EXE as CORE_EXE } from '../../../core/render/browser.mjs';
 const STILLS_DIR = path.resolve(process.env.OUT || path.join(path.dirname(fileURLToPath(import.meta.url)), 'stills'));
 const INVOKE_CWD = process.cwd();
 process.chdir(path.dirname(fileURLToPath(import.meta.url)));
-// 无头 Chrome：PLAYWRIGHT_CHROME > core/render/browser.mjs 自动查找（原项目写死 chromium_headless_shell-1228）
+// headless Chrome: PLAYWRIGHT_CHROME > auto-discovery in core/render/browser.mjs (the original project hard-coded chromium_headless_shell-1228)
 const EXE = CORE_EXE;
 const URL = 'file://' + path.resolve('index.html');
 const FPS = parseInt(process.env.FPS || "60");
@@ -66,8 +66,8 @@ if (mode === 'stills') {
   fs.writeFileSync('out/list.txt', [...Array(W)].map((_, w) => `file 'seg_${w}.mp4'`).join('\n'));
   console.log('done', ((Date.now() - t0) / 1000).toFixed(0) + 's');
 } else if (mode === 'part') {
-  // 收录时新增：只渲一段（单 worker），编码参数与 video 模式相同。用于只重渲片尾等局部返修。
-  // node render.mjs part <t0> <t1> <out.mp4>   → 帧 [round(t0*FPS), round(t1*FPS))
+  // added when imported into the library: render one stretch only (single worker), same encoding settings as video mode. For local fixes such as re-rendering just the ending.
+  // node render.mjs part <t0> <t1> <out.mp4>   → frames [round(t0*FPS), round(t1*FPS))
   const a = Math.round(parseFloat(process.argv[3]) * FPS), b = Math.round(parseFloat(process.argv[4]) * FPS);
   const outF = path.resolve(INVOKE_CWD, process.argv[5] || `out/part_${process.argv[3]}.mp4`);
   const page = await openPage(browser), t0 = Date.now();

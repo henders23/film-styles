@@ -1,4 +1,4 @@
-// 导出烧录字幕的时间表 → out/subs.json（再用 core/render/srt.py 转 .srt）
+// export the burned-in subtitle timetable → out/subs.json (then core/render/srt.py converts to .srt)
 import fs from 'fs'; import path from 'path'; import { fileURLToPath } from 'url';
 import { openDemo, closeServer } from '../../../../core/render/page.mjs';
 const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');

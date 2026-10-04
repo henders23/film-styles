@@ -1,4 +1,4 @@
-# whisper 逐词时间 → 原文逐词时间（字幕逐词出现用）。按字符位置比例把 whisper 词起点映射到原文单词上
+# whisper per-word timings → per-word timings for the script text (for word-by-word subtitles). Maps whisper word starts onto script words by relative character position
 import json, os
 D = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 lines = json.load(open(os.path.join(D, 'lines.json'))); W = json.load(open(os.path.join(D, 'voices/words.json')))

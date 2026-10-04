@@ -1,5 +1,5 @@
 import os
-"""试多个说法/声线，whisper 回听，挑能被听对的：python vo_try.py"""
+"""Try several phrasings/voices, listen back with whisper, keep the ones heard correctly: python vo_try.py"""
 import sys, json, re, numpy as np, soundfile as sf, librosa
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..')))
 from kokoro_onnx import Kokoro

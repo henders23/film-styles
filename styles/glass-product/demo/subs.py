@@ -1,5 +1,5 @@
-"""字幕导出：与页面烧录同一规则（显示 = max(1.9 s, 语音 + 0.7 s)），旁白时间取自 story.js
-python styles/glass-product/demo/subs.py → demo/cues.json（再用 core/render/srt.py 转 .srt）"""
+"""Subtitle export: same rule as the page burn-in (display = max(1.9 s, speech + 0.7 s)), VO timings from story.js
+python styles/glass-product/demo/subs.py → demo/cues.json (then core/render/srt.py converts to .srt)"""
 import json, os, re
 HERE = os.path.dirname(os.path.abspath(__file__))
 src = open(os.path.join(HERE, 'story.js')).read()

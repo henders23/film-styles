@@ -1,4 +1,4 @@
-# 成片逐句 whisper：从成片音轨按字幕区间截取每句再转写，对照 lines.json 的 asr/text
+# per-line whisper on the final film: cut each line from the film's audio by its subtitle span, transcribe, and compare with asr/text in lines.json
 import sys, json, os, re, subprocess, numpy as np
 from faster_whisper import WhisperModel
 D = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'); MP4 = sys.argv[1]

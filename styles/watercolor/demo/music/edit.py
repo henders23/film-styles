@@ -1,5 +1,5 @@
-# 配乐跳剪：在 beats[85]（61.23 s）处跳到 beats[437]（265.61 s），砍掉中间 204.4 s，0.18 s 等功率交叉淡化 → score.wav（≈117.8 s）
-# wf48.wav = Wildflowers.mp3 解码为 48 kHz 立体声（见 prep.sh）
+# score jump cut: at beats[85] (61.23 s) jump to beats[437] (265.61 s), cutting the 204.4 s between, 0.18 s equal-power crossfade → score.wav (≈117.8 s)
+# wf48.wav = Wildflowers.mp3 decoded to 48 kHz stereo (see prep.sh)
 import numpy as np, json, soundfile as sf, os
 os.chdir(os.path.dirname(os.path.abspath(__file__))); OUT = os.environ.get('OUT', '.')
 x, sr = sf.read('wf48.wav'); print(sr, x.shape)
@@ -15,7 +15,7 @@ json.dump({'cut':a,'lag':b-a,'beats':[float(v) for v in beats if v<a]+[float(v-(
 try:
     import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
 except ImportError:
-    print('matplotlib 不在 .venv 里，跳过 score_curve.png'); raise SystemExit
+    print('matplotlib not in .venv, skipping score_curve.png'); raise SystemExit
 
 m=y.mean(1); hop=sr//10; n=len(m)//hop; fr=m[:n*hop].reshape(n,hop)
 db=10*np.log10((fr**2).mean(1)+1e-10)
