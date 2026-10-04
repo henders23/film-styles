@@ -1,4 +1,4 @@
-// 角色单独试画：index.html?test=model（角色设定表）| side | bust
+// Character test drawing on its own: index.html?test=model (model sheet) | side | bust
 import { canvas, W, H, LWK } from './cel.js';
 import { PAL } from './pal.js';
 import { riderSide } from './rider.js';

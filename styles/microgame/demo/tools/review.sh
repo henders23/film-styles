@@ -1,5 +1,5 @@
 #!/bin/bash
-# 审片：bash tools/review.sh <outdir> <cols> t1 t2 ...  → <outdir>/sheet.jpg（仓库根目录下运行路径自动处理）
+# Review: bash tools/review.sh <outdir> <cols> t1 t2 ...  → <outdir>/sheet.jpg (paths handled automatically when run from the repo root)
 cd "$(dirname "$0")/../../../.."
 D=styles/microgame/demo; OUT=$1; COLS=$2; shift 2
 node core/render/still.mjs $D "$@" --out $D/$OUT --prefix k_ >/dev/null || exit 1
