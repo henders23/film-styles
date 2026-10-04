@@ -1,11 +1,11 @@
-"""Kokoro 本地配音（离线）：python core/tts/tts.py lines.json out_dir
+"""Kokoro local voice-over (offline): python core/tts/tts.py lines.json out_dir
 lines.json = [{"id":..., "text":..., "voice":"bm_george", "speed":0.92, "lang":"en-us"}, ...]
-  默认 voice=af_bella、speed=0.92、lang=en-us。中文用 "lang":"cmn" 加 zf_*/zm_* 声音（离线可用，音色一般）。
-输出 out_dir/<id>.wav（24kHz，去首尾静音）与 out_dir/dur.json
-模型：kokoro-v1.0.onnx / voices-v1.0.bin 放在本目录，下载：sh tools/fetch.sh voice（约 350 MB）
-路径限制：espeak-ng（Kokoro 用它把文字转成音素）的数据目录，解析软链后的真实路径必须短于 160 字节（汉字算 3 字节），否则找不到数据、
-         报一个指向别人机器上某个路径（编译 espeak-ng 的那台）的莫名其妙的错。库放在 ~/lemo-opuscar 之类的短路径下就没事；本脚本开工前会检查并说明。
-要更自然的中文/日文等声音：core/tts/tts_zh.py（微软 edge-tts，要联网），接口和输出布局相同。
+  Defaults voice=af_bella, speed=0.92, lang=en-us. For Chinese use "lang":"cmn" with zf_*/zm_* voices (works offline, mediocre timbre).
+Outputs out_dir/<id>.wav (24kHz, leading/trailing silence trimmed) and out_dir/dur.json
+Model: kokoro-v1.0.onnx / voices-v1.0.bin go in this folder; download with: sh tools/fetch.sh voice (about 350 MB)
+Path limit: the real path (after resolving symlinks) of the espeak-ng data folder (Kokoro uses it to turn text into phonemes) must be under 160 bytes (a CJK character counts as 3 bytes), or the data isn't found
+         and you get a baffling error pointing at a path on someone else's machine (where espeak-ng was built). A short path like ~/lemo-opuscar is fine; this script checks and explains before starting.
+For more natural Chinese/Japanese etc. voices: core/tts/tts_zh.py (Microsoft edge-tts, needs network), same interface and output layout.
 """
 import sys, json, os, re
 if len(sys.argv) < 3 or sys.argv[1] in ('-h', '--help'):
@@ -16,7 +16,7 @@ CJK = re.compile('[぀-ヿ㐀-鿿가-힯豈-﫿]')
 DEFAULT_VOICE = {'cmn': 'zf_xiaoxiao'}
 lines, out = json.load(open(sys.argv[1], encoding='utf-8')), sys.argv[2]
 
-# 先查输入，再加载模型（模型要几秒）
+# Check input first, then load the model (takes a few seconds)
 wrong = [L['id'] for L in lines if L.get('lang', 'en-us').lower().startswith('en') and CJK.search(L['text'])]
 if wrong:
     sys.exit(f"tts.py: line(s) {', '.join(map(str, wrong))} contain Chinese/Japanese/Korean text but lang is English, and Kokoro would read them as noise.\n"
@@ -24,12 +24,12 @@ if wrong:
 model, voices = os.path.join(HERE, 'kokoro-v1.0.onnx'), os.path.join(HERE, 'voices-v1.0.bin')
 if not (os.path.exists(model) and os.path.exists(voices)):
     sys.exit(f'tts.py: the Kokoro model is not in {HERE}.\n  install the voice tier: sh plugin/skills/lemo-opuscar/scripts/setup.sh deps voice   (from the library root; it also fetches the model, about 350 MB)')
-ESPEAK_LIMIT = 160   # 实测：espeak-ng 数据目录的真实路径 ≤159 字节能用，≥160 字节找不到 phontab（软链先被解析，量的是真实路径）
+ESPEAK_LIMIT = 160   # measured: an espeak-ng data folder real path ≤159 bytes works, ≥160 bytes can't find phontab (symlinks are resolved first; the real path is measured)
 try:
     import espeakng_loader
     espeak_dir = os.path.realpath(espeakng_loader.get_data_path())
 except Exception:
-    espeak_dir = None   # 装的不是 espeakng_loader（比如系统的 espeak-ng）：不检查，让 Kokoro 自己报错
+    espeak_dir = None   # not espeakng_loader (e.g. the system espeak-ng): don't check, let Kokoro report its own error
 if espeak_dir and len(espeak_dir.encode('utf-8')) >= ESPEAK_LIMIT:
     sys.exit(f"tts.py: this library sits under a folder path that is too long for the offline voice engine (espeak-ng).\n"
              f"  its data folder is {len(espeak_dir.encode('utf-8'))} bytes long (a Chinese character counts as 3), the limit is {ESPEAK_LIMIT - 1}:\n"
@@ -48,7 +48,7 @@ for L in lines:
     lang = L.get('lang', 'en-us')
     a, sr = k.create(L['text'], voice=L.get('voice') or DEFAULT_VOICE.get(lang, 'af_bella'), speed=L.get('speed', .92), lang=lang)
     nz = np.where(np.abs(a) > (np.abs(a).max() if len(a) else 0) * .02)[0]
-    if len(nz): a = a[max(0, nz[0] - int(.03 * sr)): nz[-1] + int(.08 * sr)]   # 去首尾静音；整段几乎无声就原样保留
+    if len(nz): a = a[max(0, nz[0] - int(.03 * sr)): nz[-1] + int(.08 * sr)]   # trim leading/trailing silence; keep as is if nearly silent throughout
     else: print('warning: line', L['id'], 'is silent', file=sys.stderr)
     sf.write(os.path.join(out, L['id'] + '.wav'), a, sr); dur[L['id']] = round(len(a) / sr, 3)
     print(L['id'], dur[L['id']], L['text'])

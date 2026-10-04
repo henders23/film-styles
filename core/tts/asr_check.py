@@ -1,19 +1,19 @@
-"""whisper 逐句校对：python core/tts/asr_check.py lines.json voices_dir [--lang en|zh|auto] [--model base|small|…] [--threshold 0.92]
-逐句对比原文与转写：前后补 0.6s 静音再转写（短句不补容易听错），输出逐词时间戳 voices_dir/words.json（口型、断句用）。
-lines.json 里可加 "asr" 字段覆盖期望文本（专有名词、拟声词、数字的读法，例如 "三十八" 而不是 "38"）。
---lang  auto（默认）按文本里有没有汉字判断；en 要求去掉标点和大小写后逐词完全一致（0–999 的数字两边都换成读法，所以
-        "forty" 和 "40" 算一样；更大的数、年份、序数 3rd、带标点的数（3.5、1:30、1,000、40%）不换，期望的转写写进 "asr" 字段）；zh（也可用 ja / ko）按字符相似度，
-        去标点、全半角、汉字数字变阿拉伯数字后 difflib 相似度 ≥ --threshold（默认 0.92）算通过。
-模型：--model（或环境变量 WHISPER_MODEL；模型名，或本地目录，离线可用）；默认 en → base.en，其它语言 → base（多语言）。
-      base 把某句听错、而你听着没错时，换 --model small 再查（更准，约 480 MB，慢几倍）。
-      首次运行会从 Hugging Face 下载（base / base.en ≈ 145 MB）；防火墙后面：HF_ENDPOINT=https://hf-mirror.com，
-      或者事先下好，再 --model /path/to/model-dir。
-退出码：0 全部通过；1 有不一致；2 检查没能运行（模型加载失败等）。
+"""Whisper line-by-line check: python core/tts/asr_check.py lines.json voices_dir [--lang en|zh|auto] [--model base|small|…] [--threshold 0.92]
+Compares each line's text with its transcript: pads 0.6s of silence on both sides before transcribing (short lines get misheard without it), writes per-word timestamps to voices_dir/words.json (for lip sync, phrasing).
+lines.json may add an "asr" field to override the expected text (proper nouns, onomatopoeia, how numbers are read, e.g. "thirty-eight" rather than "38").
+--lang  auto (default) decides by whether the text contains CJK characters; en requires an exact word-by-word match after removing punctuation and case (numbers 0–999 are converted to words on both sides, so
+        "forty" and "40" match; larger numbers, years, ordinals like 3rd and numbers with punctuation (3.5, 1:30, 1,000, 40%) are not converted, put the expected transcript in the "asr" field); zh (also ja / ko) uses character similarity:
+        after removing punctuation, normalizing full/half width and converting Chinese numerals to Arabic, difflib similarity ≥ --threshold (default 0.92) passes.
+Model: --model (or env var WHISPER_MODEL; a model name, or a local folder for offline use); default en → base.en, other languages → base (multilingual).
+      If base mishears a line that sounds right to you, recheck with --model small (more accurate, about 480 MB, several times slower).
+      The first run downloads from Hugging Face (base / base.en ≈ 145 MB); behind a firewall: HF_ENDPOINT=https://hf-mirror.com,
+      or download it beforehand and pass --model /path/to/model-dir.
+Exit codes: 0 all pass; 1 mismatches found; 2 the check couldn't run (model failed to load etc.).
 """
 import sys, json, re, os, argparse, difflib, unicodedata
 
 CJK = re.compile('[㐀-鿿豈-﫿぀-ヿ가-힯]')
-CHAR_LANGS = {'zh', 'ja', 'ko'}           # 这些语言按字符比，其余按词比
+CHAR_LANGS = {'zh', 'ja', 'ko'}           # these languages compare by character, the rest by word
 _DIGITS = str.maketrans('零〇一二三四五六七八九', '00123456789')
 
 
@@ -22,28 +22,28 @@ _TENS = 'x x twenty thirty forty fifty sixty seventy eighty ninety'.split()
 
 
 def num_words(n):
-    """0–999 → 英文读法的词列表：40 → ['forty']，105 → ['one', 'hundred', 'five']"""
+    """0–999 → list of English words: 40 → ['forty'], 105 → ['one', 'hundred', 'five']"""
     out = []
     if n >= 100: out += [_ONES[n // 100], 'hundred']; n %= 100
     if n >= 20: out.append(_TENS[n // 10]); n %= 10
-    if n or not out: out.append(_ONES[n])   # 整百（100、200…）不再补 zero；0 本身要读 zero
+    if n or not out: out.append(_ONES[n])   # whole hundreds (100, 200…) get no trailing zero; 0 itself reads zero
     return out
 
 
-_SENTENCE_PUNCT = '.,;:!?"()[]{}\u2026\u201c\u201d\u2018\u2019'   # 词两头的标点（句号、逗号、括号…）；百分号不在其内
+_SENTENCE_PUNCT = '.,;:!?"()[]{}\u2026\u201c\u201d\u2018\u2019'   # punctuation at word edges (period, comma, brackets…); not the percent sign
 
 
 def _is_formatted_number(raw):
-    """数字之间带标点的写法：小数 3.5、时间 1:30、日期 12/25、千分位 1,000，以及带百分号的 40%。
-    去掉标点后它们会和另一个数长得一样（3.5 → 35），所以不能转成读法。"""
+    """Numbers with punctuation between digits: decimal 3.5, time 1:30, date 12/25, thousands 1,000, plus percentages like 40%.
+    Without punctuation they would look like another number (3.5 → 35), so they can't be converted to words."""
     core = raw.strip(_SENTENCE_PUNCT)
     return bool(re.search(r'\d[.,:/]\d', core) or ('%' in core and re.search(r'\d', core)))
 
 
 def norm_en(s):
-    """英文比较用的词表：小写、去标点；0–999 的整数（whisper 常把 forty 写成 40）换成读法，"hundred and" 的 and 不计。
-    保持原样（只去标点，不换成读法）的：更大的数、年份、序数（3rd）、以及带标点的数（小数 3.5、时间 1:30、千分位 1,000、百分数 40%）——
-    否则 3.5 会变成 35、和 "thirty five" 混淆。它们的读法请在 lines.json 的 asr 字段里写出期望的转写。"""
+    """Word list for English comparison: lowercase, no punctuation; integers 0–999 (whisper often writes forty as 40) become words; the and in "hundred and" is ignored.
+    Kept as is (punctuation stripped, not converted to words): larger numbers, years, ordinals (3rd), and numbers with punctuation (decimal 3.5, time 1:30, thousands 1,000, percent 40%) -
+    otherwise 3.5 would become 35 and be confused with "thirty five". Write the expected transcript for these in the asr field of lines.json."""
     out = []
     for raw in s.lower().replace("'", '').replace('-', ' ').split():
         w = re.sub(r"[^a-z0-9]", '', raw)
@@ -55,8 +55,8 @@ def norm_en(s):
 
 
 def norm_zh(s):
-    s = unicodedata.normalize('NFKC', s).lower().translate(_DIGITS)   # NFKC：全角→半角、兼容字形归一
-    return ''.join(c for c in s if unicodedata.category(c)[0] in 'LN')   # 只留字母/汉字/数字，标点空白全去掉
+    s = unicodedata.normalize('NFKC', s).lower().translate(_DIGITS)   # NFKC: full width → half width, compatibility forms normalized
+    return ''.join(c for c in s if unicodedata.category(c)[0] in 'LN')   # keep only letters/CJK/digits, drop all punctuation and whitespace
 
 
 def detect_lang(texts):
@@ -65,7 +65,7 @@ def detect_lang(texts):
 
 
 def compare(want, got, lang, threshold=0.92):
-    """返回 (是否通过, 相似度 0..1)"""
+    """Returns (passed, similarity 0..1)"""
     if lang in CHAR_LANGS:
         a, b = norm_zh(want), norm_zh(got)
         r = difflib.SequenceMatcher(None, a, b).ratio() if (a or b) else 1.0
@@ -105,8 +105,8 @@ def main():
     for L in lines:
         y, sr = sf.read(os.path.join(a.voices_dir, L['id'] + '.wav'))
         if y.ndim > 1: y = y.mean(1)
-        y = soxr.resample(y, sr, 16000, quality='HQ'); pad = np.zeros(int(.6 * 16000))   # 与 librosa 默认的 soxr_hq 相同
-        kw = dict(initial_prompt='以下是普通话的句子。') if lang == 'zh' else {}          # 提示成简体，避免转写出繁体
+        y = soxr.resample(y, sr, 16000, quality='HQ'); pad = np.zeros(int(.6 * 16000))   # same as librosa's default soxr_hq
+        kw = dict(initial_prompt='以下是普通话的句子。') if lang == 'zh' else {}          # prompt in Simplified Chinese so the transcript isn't Traditional
         segs, _ = m.transcribe(np.concatenate([pad, y, pad]).astype(np.float32), beam_size=5, language=lang, word_timestamps=True, **kw)
         tail = (len(y) + len(pad)) / 16000 - .5   # Whisper sometimes repeats the line inside the trailing pad: drop such no-speech segments
         segs = [s for s in segs if not (s.no_speech_prob > .5 and s.start > tail)]; got = ' '.join(s.text.strip() for s in segs)

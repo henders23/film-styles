@@ -1,9 +1,9 @@
-"""采样乐器（numpy/soxr 离线）：按名加载 CC0/CC-BY 真实乐器采样，自动移调/力度层/轮换/延音循环。
-所有 note/hit 返回单声道 float32 @ SR；render 返回立体声 (N,2)。用法见 INSTRUMENTS.md。
+"""Sampled instruments (numpy/soxr, offline): load CC0/CC-BY real instrument samples by name, with automatic transposition/velocity layers/round robin/sustain looping.
+Every note/hit returns mono float32 @ SR; render returns stereo (N,2). Usage in INSTRUMENTS.md.
 
     from core.audio import sampler as S
-    x = S.note('cellos', 'D3', 2.0, vel=.7)            # 大提琴组长音 2 秒（不够长自动交叉淡化延长）
-    y = S.hit('snare', 'roll', .6)                       # 无音高打击
+    x = S.note('cellos', 'D3', 2.0, vel=.7)            # cello section held 2 s (crossfade-extended automatically if the sample is too short)
+    y = S.hit('snare', 'roll', .6)                       # unpitched percussion
     mix = S.render([(0, 'piano', 'C4', 1, .7, -.2), (0, 'violins', 'E5', 4, .6, .3)], 6)
 """
 import os, re, json, math, glob, threading
@@ -16,7 +16,7 @@ from scipy.ndimage import uniform_filter1d
 
 try:
     from .sfx import SR, add, limit
-except ImportError:  # 直接 import sampler 时
+except ImportError:  # when importing sampler directly
     from sfx import SR, add, limit
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instruments')
@@ -26,19 +26,19 @@ _lock = threading.RLock()
 
 
 def seed(n):
-    """重设轮换/随机种子（同样的调用顺序 → 同样的结果）"""
+    """Reset round robin/random seed (same call order → same result)"""
     global _rng; _rng = np.random.default_rng(n)
 
 
-# —— 音高 ——
+# -- pitch --
 _PC = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}
 
 
 def midi(p):
-    """'C#4' / 'Db3' / 'Bb-1' / 61 / 61.5 → midi（C4=60，允许小数=微分音）"""
+    """'C#4' / 'Db3' / 'Bb-1' / 61 / 61.5 → midi (C4=60, fractions allowed = microtones)"""
     if isinstance(p, (int, float, np.integer, np.floating)): return float(p)
     m = re.fullmatch(r'\s*([A-Ga-g])([#sb♯♭]*)(-?\d+)\s*', str(p))
-    if not m: raise ValueError(f'无法解析音高 {p!r}')
+    if not m: raise ValueError(f'cannot parse pitch {p!r}')
     acc = m.group(2).count('#') + m.group(2).count('s') + m.group(2).count('♯') - m.group(2).count('b') - m.group(2).count('♭')
     return float(12 * (int(m.group(3)) + 1) + _PC[m.group(1).upper()] + acc)
 
@@ -50,127 +50,127 @@ def name(m):
     m = int(round(m)); return ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'][m % 12] + str(m // 12 - 1)
 
 
-# —— 乐器注册表 ——
-# src: 相对 instruments/ 的目录（或 (目录, 文件名正则)）；kind: sus=可延长长音 / dec=自然衰减（dur 到了就按 rel 止音）/ hit=无音高
-# pp: 音高解析 upper(文件名 C#4) | lower(karoryfer 小写 ab2) | sal | organ | detect(无名字，用 yin 测) | sfz
-# rel: 默认释放时间(s)；var: 无音高/多鼓的变体 {名: 文件名正则}；lic: 授权键（见 LIC）
+# -- instrument registry --
+# src: folder relative to instruments/ (or (folder, file-name regex)); kind: sus=extendable sustain / dec=natural decay (damped with rel once dur is reached) / hit=unpitched
+# pp: pitch parsing upper(file name C#4) | lower(karoryfer lowercase ab2) | sal | organ | detect(no name, measured with yin) | sfz
+# rel: default release time (s); var: variants for unpitched/multi-drum {name: file-name regex}; lic: license key (see LIC)
 V, C, F, K, SAL = 'vsco2ce/', 'vcsl/', 'freepats/', 'karoryfer/', 'salamander/'
 VI, VM = C + 'Idiophones/Struck Idiophones/', C + 'Membranophones/Struck Membranophones/'
 REG = {
-    # 弦乐
-    'violins':        dict(src=V + 'Strings/Violin Section/susVib', kind='sus', rel=.35, fam='弦乐', desc='小提琴组 长音（揉弦）'),
-    'violins_trem':   dict(src=V + 'Strings/Violin Section/Trem', kind='sus', rel=.3, fam='弦乐', desc='小提琴组 震音'),
-    'violins_pizz':   dict(src=V + 'Strings/Violin Section/Pizz', kind='dec', rel=.15, fam='弦乐', desc='小提琴组 拨奏'),
-    'violins_spic':   dict(src=V + 'Strings/Violin Section/Spic', kind='dec', rel=.1, fam='弦乐', desc='小提琴组 跳弓（短音）'),
-    'violin':         dict(src=V + 'Strings/Solo Violin/Arco Vib', kind='sus', rel=.3, fam='弦乐', desc='独奏小提琴 长音'),
-    'violin_pizz':    dict(src=V + 'Strings/Solo Violin/Pizz', kind='dec', rel=.15, fam='弦乐', desc='独奏小提琴 拨奏'),
-    'violas':         dict(src=V + 'Strings/Viola Section/susvib', kind='sus', rel=.35, fam='弦乐', desc='中提琴组 长音'),
-    'violas_pizz':    dict(src=V + 'Strings/Viola Section/pizz', kind='dec', rel=.15, fam='弦乐', desc='中提琴组 拨奏'),
-    'cellos':         dict(src=V + 'Strings/Cello Section/susvib', kind='sus', rel=.4, fam='弦乐', desc='大提琴组 长音'),
-    'cellos_pizz':    dict(src=V + 'Strings/Cello Section/pizzT', kind='dec', rel=.2, fam='弦乐', desc='大提琴组 拨奏'),
-    'cellos_spic':    dict(src=V + 'Strings/Cello Section/spic', kind='dec', rel=.12, fam='弦乐', desc='大提琴组 跳弓'),
-    'contrabass':     dict(src=V + 'Strings/Solo Contrabass/SusVib', kind='sus', rel=.4, fam='弦乐', desc='低音提琴 长音'),
-    'contrabass_pizz': dict(src=V + 'Strings/Solo Contrabass/Pizz', kind='dec', rel=.2, fam='弦乐', desc='低音提琴 古典拨奏'),
-    'harp':           dict(src=C + 'Chordophones/Composite Chordophones/Concert Harp', kind='dec', rel=1.2, fam='弦乐', desc='竖琴'),
-    # 木管
-    'flute':          dict(src=V + 'Woodwinds/Flute/susvib', kind='sus', rel=.25, fam='木管', desc='长笛 长音'),
-    'flute_stac':     dict(src=V + 'Woodwinds/Flute/stac', kind='dec', rel=.1, fam='木管', desc='长笛 断奏'),
-    'piccolo':        dict(src=V + 'Woodwinds/Piccolo/Sus', kind='sus', rel=.2, fam='木管', desc='短笛'),
-    'clarinet':       dict(src=V + 'Woodwinds/Clarinet/susLong', kind='sus', rel=.25, fam='木管', desc='单簧管 长音'),
-    'clarinet_stac':  dict(src=V + 'Woodwinds/Clarinet/stac', kind='dec', rel=.1, fam='木管', desc='单簧管 断奏'),
-    'oboe':           dict(src=V + 'Woodwinds/Oboe/Vib', kind='sus', rel=.25, fam='木管', desc='双簧管 长音'),
-    'oboe_stac':      dict(src=V + 'Woodwinds/Oboe/Stacc', kind='dec', rel=.1, fam='木管', desc='双簧管 断奏'),
-    'bassoon':        dict(src=V + 'Woodwinds/Bassoon/sus', kind='sus', rel=.25, fam='木管', desc='巴松 长音'),
-    'bassoon_stac':   dict(src=V + 'Woodwinds/Bassoon/stac', kind='dec', rel=.1, fam='木管', desc='巴松 断奏'),
-    'recorder':       dict(src=C + 'Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Sustain', kind='sus', rel=.15, fam='木管', desc='中音竖笛（巴洛克）'),
-    'ocarina':        dict(src=(C + 'Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains', r'_Sus_'), kind='sus', rel=.15, fam='木管', desc='陶笛'),
-    'tenor_sax':      dict(src=C + 'Aerophones/Reed Aerophones/Tenor Saxophone/Vibrato', kind='sus', rel=.2, fam='木管', desc='次中音萨克斯 揉音'),
-    'tenor_sax_nv':   dict(src=C + 'Aerophones/Reed Aerophones/Tenor Saxophone/Non-Vibrato', kind='sus', rel=.2, fam='木管', desc='次中音萨克斯 直音'),
-    'tenor_sax_stac': dict(src=C + 'Aerophones/Reed Aerophones/Tenor Saxophone/Staccato', kind='dec', rel=.08, fam='木管', desc='次中音萨克斯 断奏'),
-    'alto_sax':       dict(src=K + 'weresax/Samples/alto', kind='sus', rel=.2, pp='lower', fam='木管', desc='中音萨克斯（Weresax）'),
-    'harmonica':      dict(src=(C + 'Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains', r'_Normal'), kind='sus', rel=.15, fam='木管', desc='半音阶口琴'),
-    # 铜管
-    'trumpet':        dict(src=V + 'Brass/Trumpet/sus', kind='sus', rel=.25, fam='铜管', desc='小号 长音'),
-    'trumpet_stac':   dict(src=V + 'Brass/Trumpet/stac', kind='dec', rel=.1, fam='铜管', desc='小号 断奏'),
-    'trumpet_mute':   dict(src=V + 'Brass/Trumpet/straightM-sus', kind='sus', rel=.2, fam='铜管', desc='小号 直弱音器'),
-    'horn':           dict(src=V + 'Brass/F Horn/sus', kind='sus', rel=.35, fam='铜管', desc='圆号 长音'),
-    'horn_stac':      dict(src=V + 'Brass/F Horn/stac', kind='dec', rel=.12, fam='铜管', desc='圆号 断奏'),
-    'trombone':       dict(src=V + 'Brass/Tenor Trombone/sus', kind='sus', rel=.3, fam='铜管', desc='长号 长音'),
-    'trombone_stac':  dict(src=V + 'Brass/Tenor Trombone/stac', kind='dec', rel=.12, fam='铜管', desc='长号 断奏'),
-    'tuba':           dict(src=V + 'Brass/Tuba/sus', kind='sus', rel=.3, fam='铜管', desc='大号 长音'),
-    'tuba_stac':      dict(src=V + 'Brass/Tuba/stac', kind='dec', rel=.12, fam='铜管', desc='大号 断奏'),
-    # 有音高打击
-    'timpani':        dict(src=V + 'Percussion/Timpani', kind='dec', rel=1.5, pp='detect', fam='打击', desc='定音鼓（5 面鼓；音高=主振动模 (1,1) 频谱实测）',
+    # strings
+    'violins':        dict(src=V + 'Strings/Violin Section/susVib', kind='sus', rel=.35, fam='弦乐', desc='violin section, sustained (vibrato)'),
+    'violins_trem':   dict(src=V + 'Strings/Violin Section/Trem', kind='sus', rel=.3, fam='弦乐', desc='violin section, tremolo'),
+    'violins_pizz':   dict(src=V + 'Strings/Violin Section/Pizz', kind='dec', rel=.15, fam='弦乐', desc='violin section, pizzicato'),
+    'violins_spic':   dict(src=V + 'Strings/Violin Section/Spic', kind='dec', rel=.1, fam='弦乐', desc='violin section, spiccato (short)'),
+    'violin':         dict(src=V + 'Strings/Solo Violin/Arco Vib', kind='sus', rel=.3, fam='弦乐', desc='solo violin, sustained'),
+    'violin_pizz':    dict(src=V + 'Strings/Solo Violin/Pizz', kind='dec', rel=.15, fam='弦乐', desc='solo violin, pizzicato'),
+    'violas':         dict(src=V + 'Strings/Viola Section/susvib', kind='sus', rel=.35, fam='弦乐', desc='viola section, sustained'),
+    'violas_pizz':    dict(src=V + 'Strings/Viola Section/pizz', kind='dec', rel=.15, fam='弦乐', desc='viola section, pizzicato'),
+    'cellos':         dict(src=V + 'Strings/Cello Section/susvib', kind='sus', rel=.4, fam='弦乐', desc='cello section, sustained'),
+    'cellos_pizz':    dict(src=V + 'Strings/Cello Section/pizzT', kind='dec', rel=.2, fam='弦乐', desc='cello section, pizzicato'),
+    'cellos_spic':    dict(src=V + 'Strings/Cello Section/spic', kind='dec', rel=.12, fam='弦乐', desc='cello section, spiccato'),
+    'contrabass':     dict(src=V + 'Strings/Solo Contrabass/SusVib', kind='sus', rel=.4, fam='弦乐', desc='double bass, sustained'),
+    'contrabass_pizz': dict(src=V + 'Strings/Solo Contrabass/Pizz', kind='dec', rel=.2, fam='弦乐', desc='double bass, classical pizzicato'),
+    'harp':           dict(src=C + 'Chordophones/Composite Chordophones/Concert Harp', kind='dec', rel=1.2, fam='弦乐', desc='harp'),
+    # woodwinds
+    'flute':          dict(src=V + 'Woodwinds/Flute/susvib', kind='sus', rel=.25, fam='木管', desc='flute, sustained'),
+    'flute_stac':     dict(src=V + 'Woodwinds/Flute/stac', kind='dec', rel=.1, fam='木管', desc='flute, staccato'),
+    'piccolo':        dict(src=V + 'Woodwinds/Piccolo/Sus', kind='sus', rel=.2, fam='木管', desc='piccolo'),
+    'clarinet':       dict(src=V + 'Woodwinds/Clarinet/susLong', kind='sus', rel=.25, fam='木管', desc='clarinet, sustained'),
+    'clarinet_stac':  dict(src=V + 'Woodwinds/Clarinet/stac', kind='dec', rel=.1, fam='木管', desc='clarinet, staccato'),
+    'oboe':           dict(src=V + 'Woodwinds/Oboe/Vib', kind='sus', rel=.25, fam='木管', desc='oboe, sustained'),
+    'oboe_stac':      dict(src=V + 'Woodwinds/Oboe/Stacc', kind='dec', rel=.1, fam='木管', desc='oboe, staccato'),
+    'bassoon':        dict(src=V + 'Woodwinds/Bassoon/sus', kind='sus', rel=.25, fam='木管', desc='bassoon, sustained'),
+    'bassoon_stac':   dict(src=V + 'Woodwinds/Bassoon/stac', kind='dec', rel=.1, fam='木管', desc='bassoon, staccato'),
+    'recorder':       dict(src=C + 'Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Sustain', kind='sus', rel=.15, fam='木管', desc='alto recorder (baroque)'),
+    'ocarina':        dict(src=(C + 'Aerophones/Edge-blown Aerophones/Ocarina, Typical/Sustains', r'_Sus_'), kind='sus', rel=.15, fam='木管', desc='ocarina'),
+    'tenor_sax':      dict(src=C + 'Aerophones/Reed Aerophones/Tenor Saxophone/Vibrato', kind='sus', rel=.2, fam='木管', desc='tenor sax, vibrato'),
+    'tenor_sax_nv':   dict(src=C + 'Aerophones/Reed Aerophones/Tenor Saxophone/Non-Vibrato', kind='sus', rel=.2, fam='木管', desc='tenor sax, no vibrato'),
+    'tenor_sax_stac': dict(src=C + 'Aerophones/Reed Aerophones/Tenor Saxophone/Staccato', kind='dec', rel=.08, fam='木管', desc='tenor sax, staccato'),
+    'alto_sax':       dict(src=K + 'weresax/Samples/alto', kind='sus', rel=.2, pp='lower', fam='木管', desc='alto sax (Weresax)'),
+    'harmonica':      dict(src=(C + 'Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains', r'_Normal'), kind='sus', rel=.15, fam='木管', desc='chromatic harmonica'),
+    # brass
+    'trumpet':        dict(src=V + 'Brass/Trumpet/sus', kind='sus', rel=.25, fam='铜管', desc='trumpet, sustained'),
+    'trumpet_stac':   dict(src=V + 'Brass/Trumpet/stac', kind='dec', rel=.1, fam='铜管', desc='trumpet, staccato'),
+    'trumpet_mute':   dict(src=V + 'Brass/Trumpet/straightM-sus', kind='sus', rel=.2, fam='铜管', desc='trumpet, straight mute'),
+    'horn':           dict(src=V + 'Brass/F Horn/sus', kind='sus', rel=.35, fam='铜管', desc='French horn, sustained'),
+    'horn_stac':      dict(src=V + 'Brass/F Horn/stac', kind='dec', rel=.12, fam='铜管', desc='French horn, staccato'),
+    'trombone':       dict(src=V + 'Brass/Tenor Trombone/sus', kind='sus', rel=.3, fam='铜管', desc='trombone, sustained'),
+    'trombone_stac':  dict(src=V + 'Brass/Tenor Trombone/stac', kind='dec', rel=.12, fam='铜管', desc='trombone, staccato'),
+    'tuba':           dict(src=V + 'Brass/Tuba/sus', kind='sus', rel=.3, fam='铜管', desc='tuba, sustained'),
+    'tuba_stac':      dict(src=V + 'Brass/Tuba/stac', kind='dec', rel=.12, fam='铜管', desc='tuba, staccato'),
+    # pitched percussion
+    'timpani':        dict(src=V + 'Percussion/Timpani', kind='dec', rel=1.5, pp='detect', fam='打击', desc='timpani (5 drums; pitch = principal (1,1) mode, measured from spectrum)',
                            roots={'drum1': 41.47, 'drum2': 46.81, 'drum3': 49.57, 'drum4': 52.5, 'drum5': 54.63},
                            var={f'drum{i}': f'Timpani{i}_' for i in range(1, 6)}),
-    'glockenspiel':   dict(src=VI + 'Glockenspiel', kind='dec', rel=1.5, fam='打击', desc='钟琴'),
-    'xylophone':      dict(src=VI + 'Xylophone/Medium Mallets', kind='dec', rel=.5, fam='打击', desc='木琴'),
-    'marimba':        dict(src=VI + 'Marimba', kind='dec', rel=.8, fam='打击', desc='马林巴'),
-    'vibraphone':     dict(src=VI + 'Vibraphone/Soft Mallets', kind='dec', rel=1.5, fam='打击', desc='颤音琴 软槌'),
-    'vibraphone_hard': dict(src=VI + 'Vibraphone/Hard Mallets', kind='dec', rel=1.5, fam='打击', desc='颤音琴 硬槌'),
-    'vibraphone_bowed': dict(src=VI + 'Vibraphone/Bowed', kind='sus', rel=1.0, fam='打击', desc='颤音琴 弓奏（空灵长音）'),
-    'tubular_bells':  dict(src=VI + 'Tubular Bells 1', kind='dec', rel=3.0, retune=False, fam='打击', desc='管钟'),
-    'hand_chimes':    dict(src=VI + 'Hand Chimes', kind='dec', rel=2.0, fam='打击', desc='手摇钟（柔和钟声）'),
-    'kalimba':        dict(src=F + 'kalimba', kind='dec', rel=1.2, pp='sfz', fam='打击', desc='卡林巴（拇指琴）'),
-    'mbira':          dict(src=C + 'Idiophones/Plucked Idiophones/Kalimba, Tanzania', kind='dec', rel=1.2, fam='打击', desc='姆比拉/坦桑尼亚卡林巴（更粗粝；原琴非平均律，已按实测校到平均律）'),
-    'hang':           dict(src=F + 'hang', kind='dec', rel=3.0, pp='sfz', fam='打击', desc='手碟 Hang（D 小调，仅原琴音最好听）'),
-    'glass':          dict(src=F + 'glass', kind='dec', rel=2.0, pp='sfz', fam='打击', desc='水杯琴'),
-    # 键盘
-    'piano':          dict(src=SAL + 'samples', kind='dec', rel=.4, pp='sal', fam='键盘', desc='Salamander 三角钢琴（Yamaha C5，5 力度层）', lic='salamander'),
-    'upright':        dict(src=V + 'Keys/Upright Nr1', kind='dec', rel=.35, retune=False, fam='键盘', desc='立式钢琴（温暖、略旧）'),
-    'honky_tonk':     dict(src=F + 'piano_fb', kind='dec', rel=.4, pp='sfz', fam='键盘', desc='老式自动钢琴（酒馆 honky-tonk 味）'),
-    'harpsichord':    dict(src=C + 'Chordophones/Zithers/Harpsichord, Italian/Sustains', kind='dec', rel=.15, fam='键盘', desc='羽管键琴（意大利式）'),
-    'organ':          dict(src=(V + 'Keys/Organ/Loud', r'Man3'), kind='sus', rel=.2, pp='organ', oct=0, fam='键盘', desc='管风琴 手键盘全开（含 16\' 音栓，厚重）'),
-    'organ_soft':     dict(src=(V + 'Keys/Organ/Quiet', r'Man3'), kind='sus', rel=.2, pp='organ', oct=0, fam='键盘', desc='管风琴 手键盘柔和音栓'),
-    'organ_pedal':    dict(src=(V + 'Keys/Organ', r'Pedal'), kind='sus', rel=.3, pp='detect', fam='键盘', desc='管风琴 踏板低音（音高按实测）'),
-    'accordion':      dict(src=F + 'accordion', kind='sus', rel=.13, pp='sfz', fam='键盘', desc='按键手风琴'),
-    # 拨弦 / 民族
-    'guitar_nylon':   dict(src=F + 'spanish_guitar', kind='dec', rel=.3, pp='sfz', fam='拨弦', desc='尼龙弦古典吉他'),
-    'ukulele':        dict(src=F + 'ukulele', kind='dec', rel=.3, pp='sfz', fam='拨弦', desc='尤克里里'),
-    'electric_guitar': dict(src=F + 'eguitar_clean', kind='dec', rel=.3, pp='sfz', fam='拨弦', desc='清音电吉他'),
-    'electric_bass':  dict(src=F + 'finger_bass', kind='dec', rel=.12, pp='sfz', fam='拨弦', desc='电贝斯 指弹'),
-    'jazz_bass':      dict(src=K + 'sneakybass/Samples/finger', kind='dec', rel=.15, pp='lower', oct=-12, fam='拨弦', desc='低音提琴 爵士拨弦（Sneakybass）'),
-    'strumstick':     dict(src=C + 'Chordophones/Composite Chordophones/Strumstick/Finger', kind='dec', rel=.4, fam='拨弦', desc='Strumstick 民谣扬琴式拨弦（钢弦民谣感）'),
-    'dan_tranh':      dict(src=C + 'Chordophones/Zithers/Dan Tranh/Normal', kind='dec', rel=1.0, fam='拨弦', desc='越南筝 Đàn tranh（与古筝同源，可作古筝）'),
-    'dan_tranh_trem': dict(src=C + 'Chordophones/Zithers/Dan Tranh/Tremolo', kind='sus', rel=.5, fam='拨弦', desc='越南筝 摇指'),
-    'erhu':           dict(src=K + 'erhu/Samples/sus', kind='sus', rel=.25, pp='lower', fam='民族', desc='二胡 长音'),
-    'erhu_stac':      dict(src=K + 'erhu/Samples/stac', kind='dec', rel=.1, pp='lower', fam='民族', desc='二胡 短弓'),
-    'bagpipe':        dict(src=F + 'bagpipe', kind='sus', rel=.4, pp='sfz', fam='民族', desc='风笛（旋律管；G2/G3 为持续低音管）'),
-    # 无音高打击
-    'bass_drum':      dict(src=(V + 'Percussion', r'^BDrumNewhit'), kind='hit', fam='打击', desc='音乐会大鼓（7 力度层）'),
-    'gran_cassa':     dict(src=VM + 'Bass Drum 2', kind='hit', fam='打击', desc='大鼓 2（含滚奏/渐强）',
+    'glockenspiel':   dict(src=VI + 'Glockenspiel', kind='dec', rel=1.5, fam='打击', desc='glockenspiel'),
+    'xylophone':      dict(src=VI + 'Xylophone/Medium Mallets', kind='dec', rel=.5, fam='打击', desc='xylophone'),
+    'marimba':        dict(src=VI + 'Marimba', kind='dec', rel=.8, fam='打击', desc='marimba'),
+    'vibraphone':     dict(src=VI + 'Vibraphone/Soft Mallets', kind='dec', rel=1.5, fam='打击', desc='vibraphone, soft mallets'),
+    'vibraphone_hard': dict(src=VI + 'Vibraphone/Hard Mallets', kind='dec', rel=1.5, fam='打击', desc='vibraphone, hard mallets'),
+    'vibraphone_bowed': dict(src=VI + 'Vibraphone/Bowed', kind='sus', rel=1.0, fam='打击', desc='vibraphone, bowed (ethereal sustain)'),
+    'tubular_bells':  dict(src=VI + 'Tubular Bells 1', kind='dec', rel=3.0, retune=False, fam='打击', desc='tubular bells'),
+    'hand_chimes':    dict(src=VI + 'Hand Chimes', kind='dec', rel=2.0, fam='打击', desc='hand chimes (soft bells)'),
+    'kalimba':        dict(src=F + 'kalimba', kind='dec', rel=1.2, pp='sfz', fam='打击', desc='kalimba (thumb piano)'),
+    'mbira':          dict(src=C + 'Idiophones/Plucked Idiophones/Kalimba, Tanzania', kind='dec', rel=1.2, fam='打击', desc='mbira / Tanzanian kalimba (grittier; original not equal-tempered, retuned to equal temperament from measurements)'),
+    'hang':           dict(src=F + 'hang', kind='dec', rel=3.0, pp='sfz', fam='打击', desc='Hang handpan (D minor, sounds best on its original notes only)'),
+    'glass':          dict(src=F + 'glass', kind='dec', rel=2.0, pp='sfz', fam='打击', desc='glass harp'),
+    # keyboards
+    'piano':          dict(src=SAL + 'samples', kind='dec', rel=.4, pp='sal', fam='键盘', desc='Salamander grand piano (Yamaha C5, 5 velocity layers)', lic='salamander'),
+    'upright':        dict(src=V + 'Keys/Upright Nr1', kind='dec', rel=.35, retune=False, fam='键盘', desc='upright piano (warm, slightly worn)'),
+    'honky_tonk':     dict(src=F + 'piano_fb', kind='dec', rel=.4, pp='sfz', fam='键盘', desc='old player piano (saloon honky-tonk flavour)'),
+    'harpsichord':    dict(src=C + 'Chordophones/Zithers/Harpsichord, Italian/Sustains', kind='dec', rel=.15, fam='键盘', desc='harpsichord (Italian)'),
+    'organ':          dict(src=(V + 'Keys/Organ/Loud', r'Man3'), kind='sus', rel=.2, pp='organ', oct=0, fam='键盘', desc='pipe organ, manual full (incl. 16\' stop, heavy)'),
+    'organ_soft':     dict(src=(V + 'Keys/Organ/Quiet', r'Man3'), kind='sus', rel=.2, pp='organ', oct=0, fam='键盘', desc='pipe organ, manual soft stops'),
+    'organ_pedal':    dict(src=(V + 'Keys/Organ', r'Pedal'), kind='sus', rel=.3, pp='detect', fam='键盘', desc='pipe organ, pedal bass (pitch as measured)'),
+    'accordion':      dict(src=F + 'accordion', kind='sus', rel=.13, pp='sfz', fam='键盘', desc='piano accordion'),
+    # plucked / folk
+    'guitar_nylon':   dict(src=F + 'spanish_guitar', kind='dec', rel=.3, pp='sfz', fam='拨弦', desc='nylon-string classical guitar'),
+    'ukulele':        dict(src=F + 'ukulele', kind='dec', rel=.3, pp='sfz', fam='拨弦', desc='ukulele'),
+    'electric_guitar': dict(src=F + 'eguitar_clean', kind='dec', rel=.3, pp='sfz', fam='拨弦', desc='clean electric guitar'),
+    'electric_bass':  dict(src=F + 'finger_bass', kind='dec', rel=.12, pp='sfz', fam='拨弦', desc='electric bass, fingered'),
+    'jazz_bass':      dict(src=K + 'sneakybass/Samples/finger', kind='dec', rel=.15, pp='lower', oct=-12, fam='拨弦', desc='double bass, jazz pizzicato (Sneakybass)'),
+    'strumstick':     dict(src=C + 'Chordophones/Composite Chordophones/Strumstick/Finger', kind='dec', rel=.4, fam='拨弦', desc='Strumstick, folk dulcimer-style plucking (steel-string folk feel)'),
+    'dan_tranh':      dict(src=C + 'Chordophones/Zithers/Dan Tranh/Normal', kind='dec', rel=1.0, fam='拨弦', desc='Vietnamese zither Đàn tranh (same family as guzheng, usable as guzheng)'),
+    'dan_tranh_trem': dict(src=C + 'Chordophones/Zithers/Dan Tranh/Tremolo', kind='sus', rel=.5, fam='拨弦', desc='Vietnamese zither, tremolo'),
+    'erhu':           dict(src=K + 'erhu/Samples/sus', kind='sus', rel=.25, pp='lower', fam='民族', desc='erhu, sustained'),
+    'erhu_stac':      dict(src=K + 'erhu/Samples/stac', kind='dec', rel=.1, pp='lower', fam='民族', desc='erhu, short bow'),
+    'bagpipe':        dict(src=F + 'bagpipe', kind='sus', rel=.4, pp='sfz', fam='民族', desc='bagpipe (chanter; G2/G3 are the drones)'),
+    # unpitched percussion
+    'bass_drum':      dict(src=(V + 'Percussion', r'^BDrumNewhit'), kind='hit', fam='打击', desc='concert bass drum (7 velocity layers)'),
+    'gran_cassa':     dict(src=VM + 'Bass Drum 2', kind='hit', fam='打击', desc='bass drum 2 (incl. rolls/crescendos)',
                            var={'hit': r'_hit_', 'roll': r'_roll_(pp|mp|mf|ff|f)\.', 'roll_fast': r'_roll_fast_\w+(?<!_rel)\.', 'cresc': r'_cresc_', 'rub': r'_rub'}),
-    'snare':          dict(src=(V + 'Percussion', r'^Snare2-'), kind='hit', fam='打击', desc='军鼓（管弦）',
+    'snare':          dict(src=(V + 'Percussion', r'^Snare2-'), kind='hit', fam='打击', desc='snare drum (orchestral)',
                            var={'on': r'HitSN', 'off': r'HitNS', 'roll': r'rollSN', 'roll_off': r'rollNS'}),
-    'snare2':         dict(src=VM + 'Snare Drum, Modern 1', kind='hit', fam='打击', desc='军鼓 2（近拾音）',
+    'snare2':         dict(src=VM + 'Snare Drum, Modern 1', kind='hit', fam='打击', desc='snare drum 2 (close-miked)',
                            var={'on': r'HitSN', 'off': r'HitNS', 'roll': r'rollSN', 'stick': r'_stick_', 'taps': r'_taps_'}),
-    'toms':           dict(src=(VM, r'Tom [12]/'), kind='hit', fam='打击', desc='通鼓（高/低 × 鼓棒/槌）',
+    'toms':           dict(src=(VM, r'Tom [12]/'), kind='hit', fam='打击', desc='toms (high/low × sticks/mallets)',
                            var={'high': r'TomH_HitS', 'low': r'TomL_HitS', 'high_mallet': r'TomH_HitM', 'low_mallet': r'TomL_HitM', 'roll': r'Roll'}),
-    'crash':          dict(src=(V + 'Percussion', r'^cymbal-crash1'), kind='hit', fam='打击', desc='对镲（管弦）'),
-    'clash':          dict(src=VI + 'Clash Cymbals 1', kind='hit', fam='打击', desc='对镲 2', var={'crash': r'crash1_(pp|mp|mf|ff)\d', 'short': r'short'}),
-    'sus_cymbal':     dict(src=VI + 'Suspended Cymbal 1', kind='hit', fam='打击', desc='吊镲（软槌/棒/镲帽/滚奏/渐强/弓）',
+    'crash':          dict(src=(V + 'Percussion', r'^cymbal-crash1'), kind='hit', fam='打击', desc='clash cymbals (orchestral)'),
+    'clash':          dict(src=VI + 'Clash Cymbals 1', kind='hit', fam='打击', desc='clash cymbals 2', var={'crash': r'crash1_(pp|mp|mf|ff)\d', 'short': r'short'}),
+    'sus_cymbal':     dict(src=VI + 'Suspended Cymbal 1', kind='hit', fam='打击', desc='suspended cymbal (soft mallet/stick/bell/roll/crescendo/bow)',
                            var={'hit': r'_hit_(pp|mp|f|fff)\d', 'stick': r'_hit_stick', 'bell': r'_hit_bell', 'roll': r'_roll_\w+_nloop',
                                 'cresc': r'_cresc_', 'bow': r'_bow_', 'scrape': r'_scrape'}),
-    'gong':           dict(src=(V + 'Percussion', r'^gongHit'), kind='hit', fam='打击', desc='大锣/Tam-tam'),
-    'gong2':          dict(src=VI + 'Gong 1', kind='hit', fam='打击', desc='锣 2（含小锣、刮奏）', var={'big': r'^gong_(p|mf|f|fff)\.', 'small': r'gong_2_', 'scrape': r'scrape'}),
-    'triangle':       dict(src=VI + 'Triangles', kind='hit', fam='打击', desc='三角铁',
+    'gong':           dict(src=(V + 'Percussion', r'^gongHit'), kind='hit', fam='打击', desc='large gong / tam-tam'),
+    'gong2':          dict(src=VI + 'Gong 1', kind='hit', fam='打击', desc='gong 2 (incl. small gong, scrapes)', var={'big': r'^gong_(p|mf|f|fff)\.', 'small': r'gong_2_', 'scrape': r'scrape'}),
+    'triangle':       dict(src=VI + 'Triangles', kind='hit', fam='打击', desc='triangle',
                            var={'open': r'_Hit_', 'muted': r'_HitM_', 'semi': r'(?i)_hitFM_', 'roll': r'_Roll'}),
-    'tambourine':     dict(src=(V + 'Percussion', r'^Tamb1'), kind='hit', fam='打击', desc='铃鼓'),
-    'claves':         dict(src=(V + 'Percussion', r'^Claves1'), kind='hit', fam='打击', desc='响棒'),
-    'cowbell':        dict(src=(V + 'Percussion', r'^Cowbell1'), kind='hit', fam='打击', desc='牛铃'),
-    'sleighbells':    dict(src=(V + 'Percussion', r'^Sleighbells'), kind='hit', fam='打击', desc='雪橇铃'),
-    'log_drum':       dict(src=(V + 'Percussion', r'^LogDrum'), kind='hit', fam='打击', desc='木鱼鼓/裂缝鼓', var={'hi': 'LogDrumHi', 'lo': 'LogDrumLo'}),
-    'woodblock':      dict(src=VI + 'Woodblock', kind='hit', fam='打击', desc='木块', var={'a': r'wood_click_', 'b': r'wood_click2', 'c': r'wood_click3'}),
-    'frame_drum':     dict(src=VM + 'Frame Drum', kind='hit', fam='打击', desc='手鼓/框鼓',
+    'tambourine':     dict(src=(V + 'Percussion', r'^Tamb1'), kind='hit', fam='打击', desc='tambourine'),
+    'claves':         dict(src=(V + 'Percussion', r'^Claves1'), kind='hit', fam='打击', desc='claves'),
+    'cowbell':        dict(src=(V + 'Percussion', r'^Cowbell1'), kind='hit', fam='打击', desc='cowbell'),
+    'sleighbells':    dict(src=(V + 'Percussion', r'^Sleighbells'), kind='hit', fam='打击', desc='sleigh bells'),
+    'log_drum':       dict(src=(V + 'Percussion', r'^LogDrum'), kind='hit', fam='打击', desc='log drum / slit drum', var={'hi': 'LogDrumHi', 'lo': 'LogDrumLo'}),
+    'woodblock':      dict(src=VI + 'Woodblock', kind='hit', fam='打击', desc='woodblock', var={'a': r'wood_click_', 'b': r'wood_click2', 'c': r'wood_click3'}),
+    'frame_drum':     dict(src=VM + 'Frame Drum', kind='hit', fam='打击', desc='hand drum / frame drum',
                            var={'large': r'HDrumL_Hit_', 'small': r'HDrumS_Hit_', 'large_muted': r'HDrumL_HitMuted', 'small_muted': r'HDrumS_HitMuted', 'hand': r'_Hand'}),
-    'hihat':          dict(src=VI + 'Hi-Hat Cymbal', kind='hit', fam='打击', desc='踩镲', var={'closed': r'HitC_', 'open': r'HitO_', 'loose': r'HitLoose', 'pedal': r'_Close_'}),
-    'cajon':          dict(src=VI + 'Cajon', kind='hit', fam='打击', desc='卡洪鼓', var={'bass': 'hit1', 'slap': 'hit2', 'tone': 'hit3'}),
-    'conga':          dict(src=VM + 'Conga', kind='hit', fam='打击', desc='康加鼓', var={'conga': r'^Conga_HitN', 'quinto': r'^Quinto_HitN', 'tumba': r'^Tumba_HitN', 'muted': r'HitFM'}),
-    'claps':          dict(src=VI + 'Claps', kind='hit', fam='打击', desc='拍手', var={'group': r'^Clap_', 'solo': r'^SoloClap'}),
-    'shaker':         dict(src=VI + 'Shaker, Small', kind='hit', fam='打击', desc='沙锤', var={'down': r'Double_Down', 'up': r'Double_Up', 'slap': r'Slap', 'roll': r'Roll'}),
-    'nepal_bells':    dict(src=VI + 'Hand Bells, Nepalese', kind='hit', fam='打击', desc='尼泊尔手铃'),
-    'world_perc':     dict(src=F + 'world_perc', kind='hit', pp='sfz', fam='打击', desc='世界打击（卡洪/邦戈/蛋沙锤/响板/达布卡等，变体见 info()）'),
-    'drum_kit':       dict(src=F + 'muldjord_kit', kind='hit', pp='sfz', fam='打击', desc='流行鼓组 MuldjordKit（CC BY 4.0）', lic='muldjord'),
+    'hihat':          dict(src=VI + 'Hi-Hat Cymbal', kind='hit', fam='打击', desc='hi-hat', var={'closed': r'HitC_', 'open': r'HitO_', 'loose': r'HitLoose', 'pedal': r'_Close_'}),
+    'cajon':          dict(src=VI + 'Cajon', kind='hit', fam='打击', desc='cajon', var={'bass': 'hit1', 'slap': 'hit2', 'tone': 'hit3'}),
+    'conga':          dict(src=VM + 'Conga', kind='hit', fam='打击', desc='conga', var={'conga': r'^Conga_HitN', 'quinto': r'^Quinto_HitN', 'tumba': r'^Tumba_HitN', 'muted': r'HitFM'}),
+    'claps':          dict(src=VI + 'Claps', kind='hit', fam='打击', desc='claps', var={'group': r'^Clap_', 'solo': r'^SoloClap'}),
+    'shaker':         dict(src=VI + 'Shaker, Small', kind='hit', fam='打击', desc='shaker', var={'down': r'Double_Down', 'up': r'Double_Up', 'slap': r'Slap', 'roll': r'Roll'}),
+    'nepal_bells':    dict(src=VI + 'Hand Bells, Nepalese', kind='hit', fam='打击', desc='Nepalese hand bells'),
+    'world_perc':     dict(src=F + 'world_perc', kind='hit', pp='sfz', fam='打击', desc='world percussion (cajon/bongo/egg shaker/castanets/darbuka etc., variants in info())'),
+    'drum_kit':       dict(src=F + 'muldjord_kit', kind='hit', pp='sfz', fam='打击', desc='pop drum kit MuldjordKit (CC BY 4.0)', lic='muldjord'),
 }
 ALIASES = {'strings': 'violins', 'cello': 'cellos', 'viola': 'violas', 'double_bass': 'contrabass', 'upright_bass_pizz': 'jazz_bass',
            'french_horn': 'horn', 'glock': 'glockenspiel', 'vibes': 'vibraphone', 'chimes': 'tubular_bells', 'grand_piano': 'piano',
@@ -195,7 +195,7 @@ def _lic(nm):
     return (s['src'][0] if isinstance(s['src'], tuple) else s['src']).split('/')[0]
 
 
-# —— 文件名解析 ——
+# -- file-name parsing --
 _DYN = {'pppp': 1, 'ppp': 2, 'pp': 3, 'p': 4, 'mp': 5, 'mf': 6, 'f': 7, 'ff': 8, 'fff': 9, 'soft': 3, 'quiet': 3,
         'med': 6, 'medium': 6, 'normal': 6, 'loud': 8, 'accented': 8}
 
@@ -221,7 +221,7 @@ def _parse_pitch(stem, mode):
 
 def _parse_vel(stem, mode='upper'):
     tk = [t for t in _toks(stem) if not (mode == 'lower' and re.fullmatch(r'[a-g](#|b)?\d', t))]
-    for t in tk:  # 先认明确的力度标记（v3 / vl2 / dyn1 / pp / mf2），再认 soft/loud 这类词
+    for t in tk:  # explicit velocity markers first (v3 / vl2 / dyn1 / pp / mf2), then words like soft/loud
         m = re.fullmatch(r'(?i)v(?:l)?(\d+)|dyn(\d)', t)
         if m: return int(m.group(1) or m.group(2))
         b = re.sub(r'\d+$', '', t)
@@ -238,7 +238,7 @@ def _parse_rr(stem):
     return 1
 
 
-# —— SFZ 解析（freepats 系） ——
+# -- SFZ parsing (freepats family) --
 def _sfz(path):
     txt = open(path, encoding='utf-8', errors='ignore').read()
     zones, glob_, grp, lab, pending = [], {}, {}, None, None
@@ -268,14 +268,14 @@ def _sfz_zones(d):
     if not fs: return []
     out, seen = [], {}
     for r in _sfz(fs[0]):
-        if 'sample' not in r or r.get('trigger', 'attack') not in ('attack', 'first'): continue  # 跳过 release 触发的采样
+        if 'sample' not in r or r.get('trigger', 'attack') not in ('attack', 'first'): continue  # skip release-triggered samples
         p = os.path.normpath(os.path.join(os.path.dirname(fs[0]), r['sample'].replace('\\', '/')))
         if not os.path.exists(p): continue
         key = r.get('pitch_keycenter', r.get('key'))
         root = float(key) - float(r.get('tune', 0)) / 100 if key is not None else None
         lo, hi = int(r.get('lovel', 1)), int(r.get('hivel', 127))
         rel = os.path.relpath(p, ROOT)
-        if rel in seen:  # 同一采样在多个力度组里 → 合并力度范围
+        if rel in seen:  # same sample in several velocity groups → merge velocity ranges
             z = seen[rel]; z['_lo'] = min(z['_lo'], lo); z['_hi'] = max(z['_hi'], hi); continue
         var = (r.get('_lab') or os.path.basename(os.path.dirname(p)))
         import unicodedata
@@ -289,7 +289,7 @@ def _sfz_zones(d):
 
 
 def _scan(nm):
-    """按注册表收集该乐器所有采样 → zone 列表（未分析）"""
+    """Collect all samples for this instrument from the registry → list of zones (not yet analysed)"""
     s = REG[nm]; src = s['src']; mode = s.get('pp', 'upper')
     if mode == 'sfz':
         zs = _sfz_zones(src)
@@ -316,7 +316,7 @@ def _scan(nm):
     return zs
 
 
-# —— 分析（onset / 电平 / yin 实测音高），结果写 index.json ——
+# -- analysis (onset / level / yin-measured pitch), results written to index.json --
 def _read(path):
     x, sr = sf.read(os.path.join(ROOT, path), dtype='float32', always_2d=True)
     return x.mean(1), sr
@@ -350,7 +350,7 @@ def _analyze(nm, zs):
     s = REG[nm]; pitched = s['kind'] != 'hit'
     def one(z):
         x, sr = _read(z['f']); on = _onset(x); y = x[on:]
-        w = int(sr * (.4 if s['kind'] == 'sus' else .1)); seg = y[:int(sr * 4)].astype(np.float64)  # rms 取前 4 秒最响的窗（长音 0.4s / 衰减型 0.1s）
+        w = int(sr * (.4 if s['kind'] == 'sus' else .1)); seg = y[:int(sr * 4)].astype(np.float64)  # rms from the loudest window in the first 4 s (sustained 0.4s / decaying 0.1s)
         r = np.sqrt(uniform_filter1d(seg ** 2, w)[w // 2::w // 4].max()) if len(seg) > w else np.sqrt(np.mean(seg ** 2))
         z.update(on=on, n=len(y), sr=sr, rms=float(r) + 1e-9, pk=float(np.abs(y).max() + 1e-9))
         if pitched:
@@ -366,24 +366,24 @@ def _analyze(nm, zs):
             ks = [round((z['det'] - z['root']) / 12) * 12 for z in good]
             k = max(set(ks), key=ks.count)
             if ks.count(k) > len(ks) * .6: off = k
-        off = s.get('oct', off)   # 注册表可强制八度（yin 在低音/管风琴上会犹豫）
-        if s.get('roots'):        # 注册表直接给定音高（定音鼓：yin 抓不准主振动模）
+        off = s.get('oct', off)   # registry can force the octave (yin wavers on bass/organ)
+        if s.get('roots'):        # registry gives the pitch directly (timpani: yin can't lock onto the principal mode)
             for z in zs: z['root'] = s['roots'][z['var']]
             return zs, 0
         for z in zs:
-            if z['root'] is None:  # detect 模式：直接用实测
+            if z['root'] is None:  # detect mode: use the measurement as is
                 z['root'] = round(z['det'], 2) if z.get('det') is not None else 48.0
                 continue
             z['root'] += off
             dev = (z['det'] - z['root']) if z.get('det') is not None else 0
             if s.get('pp') not in ('sal', 'sfz') and s.get('retune', True) and z['conf'] > .6 and .08 < abs(dev) < .8:
-                z['root'] = round(z['root'] + dev, 3)   # 按 yin 实测微调到平均律（<80 音分；钢琴/sfz 库/管钟除外）
+                z['root'] = round(z['root'] + dev, 3)   # fine-tune to equal temperament from yin measurement (<80 cents; except piano/sfz libraries/tubular bells)
         return zs, off
     return zs, 0
 
 
 def build_index(names=None, force=False):
-    """扫描 + 分析所有（或指定）乐器，写 instruments/index.json（随采样包一起下载，一般不用跑）"""
+    """Scan + analyse all (or the given) instruments, write instruments/index.json (ships with the sample pack, rarely needs running)"""
     idx = _load_index()
     for nm in (names or REG):
         if nm in idx and not force: continue
@@ -407,7 +407,7 @@ def _load_index():
     return _IDX
 
 
-# —— 乐器对象 ——
+# -- instrument object --
 class Inst:
     def __init__(self, nm):
         self.name, self.spec = nm, REG[nm]
@@ -421,7 +421,7 @@ class Inst:
         if not self.zones:
             raise RuntimeError(f'{nm}: no samples found in {ROOT}/{self.lib}. The download looks incomplete; run again: sh tools/fetch.sh instruments {self.lib}')
         self.kind, self.rel = self.spec['kind'], self.spec.get('rel', .3)
-        # 力度层 → 0..1 位置（每个变体内分别排）
+        # velocity layers → 0..1 positions (ranked separately within each variant)
         groups = {}
         for z in self.zones: groups.setdefault(z.get('var'), []).append(z)
         for g in groups.values():
@@ -430,9 +430,9 @@ class Inst:
                 z['vp'] = .8 if z['vel'] is None or len(vs) < 2 else (vs.index(z['vel']) + .5) / len(vs)
         self.layers = max(len({z['vel'] for z in g}) for g in groups.values())
         vs = list(OrderedDict.fromkeys(z['var'] for z in self.zones if z.get('var')))
-        order = list(self.spec.get('var') or {})  # 注册表里写的第一个变体 = 默认
+        order = list(self.spec.get('var') or {})  # first variant listed in the registry = default
         self.vars = [v for v in order if v in vs] + [v for v in vs if v not in order]
-        # 电平归一：有音高 → 力度≈0.8 那层的中位 rms；打击 → 每个变体各自按峰值归一（滚奏/弓奏与单击一样好用）
+        # level normalization: pitched → median rms of the layer at velocity≈0.8; percussion → each variant normalized by its own peak (rolls/bowed as usable as single hits)
         self.vgain = {}
         for k, g in groups.items():
             d0 = min(abs(z['vp'] - .8) for z in g); ref = [z for z in g if abs(z['vp'] - .8) <= d0 + 1e-6]
@@ -462,9 +462,9 @@ _INST = {}
 
 
 def load(nm):
-    """按名加载乐器（懒加载 + 缓存）。返回 Inst（zones/range/vars 可查）"""
+    """Load an instrument by name (lazy + cached). Returns an Inst (zones/range/vars can be inspected)"""
     nm = ALIASES.get(nm, nm)
-    if nm not in REG: raise KeyError(f'未知乐器 {nm!r}；可用：{", ".join(sorted(REG))}')
+    if nm not in REG: raise KeyError(f'unknown instrument {nm!r}; available: {", ".join(sorted(REG))}')
     with _lock:
         if nm not in _INST: _INST[nm] = Inst(nm)
     return _INST[nm]
@@ -473,7 +473,7 @@ def load(nm):
 def instruments(fam=None): return [k for k, v in REG.items() if fam is None or v['fam'] == fam]
 
 
-# —— 采样读取 / 移调缓存 ——
+# -- sample loading / transposition cache --
 class _LRU(OrderedDict):
     def __init__(self, n): super().__init__(); self.n = n
     def get_or(self, k, fn):
@@ -497,7 +497,7 @@ def _raw(z):
 
 
 def _shifted(z, semis):
-    """移调 semis 半音并重采样到 SR（soxr HQ）"""
+    """Transpose by semis semitones and resample to SR (soxr HQ)"""
     k = (z['f'], round(semis, 3))
     def f():
         x, sr = _raw(z)
@@ -507,7 +507,7 @@ def _shifted(z, semis):
 
 
 def _region(z, y, r):
-    """可循环的稳定段 [a,b)（已移调后的样本坐标）"""
+    """Loopable steady section [a,b) (in transposed sample coordinates)"""
     if z.get('loop'):
         a, b = z['loop']; a = int((a - z['on']) * SR / (z['sr'] * r)); b = int((b - z['on']) * SR / (z['sr'] * r))
         if 0 < a < b <= len(y) and b - a > SR * .05: return a, b
@@ -527,13 +527,13 @@ def _region(z, y, r):
 
 
 def _extend(y, n, a, b, f0):
-    """交叉淡化颗粒延长：从稳定段随机取片段，按基频周期对齐相位后拼接，直到 n 个样本"""
+    """Crossfaded grain extension: take random grains from the steady section, phase-align them to the fundamental period and splice until n samples"""
     if len(y) >= n: return y[:n]
     per = int(SR / f0) if f0 else 600
     L = b - a
     X = int(min(.1 * SR, L / 4)); W = min(X, 2048)
     G = int(min(max(.4 * SR, L * .5), L - X - W - 2 * per))
-    if G < .05 * SR:  # 稳定段太短：退化为最后 0.2s 的周期对齐重复
+    if G < .05 * SR:  # steady section too short: fall back to period-aligned repeats of the last 0.2s
         a, b = max(0, len(y) - int(.45 * SR)), len(y) - int(.05 * SR); L = b - a
         X = int(min(.06 * SR, L / 4)); W = min(X, 2048); G = max(int(L - X - W - 2 * per), int(.05 * SR))
     buf = np.zeros(n + G + X, np.float32); m = min(b, len(y)); buf[:m] = y[:m]
@@ -546,22 +546,22 @@ def _extend(y, n, a, b, f0):
         c = np.correlate(seg, ref, 'valid')
         en = np.sqrt(np.convolve(seg ** 2, np.ones(W), 'valid') + 1e-9)
         s += int(np.argmax(c / en[:len(c)]))
-        g = float(np.clip(ref_rms / (np.sqrt(np.mean(y[s:s + G] ** 2)) + 1e-9), .75, 1.33))  # 每颗粒对齐到稳定段平均电平，不累积漂移
+        g = float(np.clip(ref_rms / (np.sqrt(np.mean(y[s:s + G] ** 2)) + 1e-9), .75, 1.33))  # match each grain to the steady section's mean level, so no drift accumulates
         buf[m - X:m] = buf[m - X:m] * (1 - fade) + y[s - X:s] * g * fade
         buf[m:m + G] = y[s:s + G] * g; m += G
     return buf[:n]
 
 
 def _vel_tone(x, vel, single):
-    """单力度层乐器：弱奏时轻微压暗（真实乐器弱奏高频少）"""
+    """Single-velocity-layer instruments: darken slightly when played soft (real instruments have fewer highs when soft)"""
     if not single or vel >= .78: return x
     fc = float(np.clip(18000 * (vel / .8) ** 2.2, 900, 18000))
     return sosfilt(butter(1, fc, 'low', fs=SR, output='sos'), x).astype(np.float32)
 
 
 def note(inst, pitch, dur, vel=.8, release=None, attack=0.0, var=None):
-    """单音：inst 名或 Inst；pitch 'C#4'/midi（可小数）；dur 按住时长(s)；vel 0..1；
-    release 止音后的释放(s，默认按乐器)；attack>0 时加淡入（弦乐铺底用）。返回 float32 @SR，长度≈dur+release"""
+    """Single note: inst name or Inst; pitch 'C#4'/midi (fractional ok); dur hold time (s); vel 0..1;
+    release = release after note off (s, default per instrument); attack>0 adds a fade-in (for string pads). Returns float32 @SR, length≈dur+release"""
     I = inst if isinstance(inst, Inst) else load(inst)
     if I.kind == 'hit': return hit(I, var, vel)
     m = midi(pitch); vel = float(np.clip(vel, .01, 1))
@@ -573,7 +573,7 @@ def note(inst, pitch, dur, vel=.8, release=None, attack=0.0, var=None):
         a, b = _region(z, y, 2 ** (semis / 12))
         y = _extend(y, dn + rn, a, b, hz(m))
     y = y[:dn + rn].copy()
-    if len(y) > dn:  # 释放：指数衰减到 -60dB，末尾 5ms 归零
+    if len(y) > dn:  # release: exponential decay to -60dB, last 5ms to zero
         t = np.arange(len(y) - dn) / SR
         env = np.exp(-6.9 * t / max(rel, .005)); env[-min(240, len(env)):] *= np.linspace(1, 0, min(240, len(env)))
         y[dn:] *= env.astype(np.float32)
@@ -585,8 +585,8 @@ def note(inst, pitch, dur, vel=.8, release=None, attack=0.0, var=None):
 
 
 def hit(inst, name_or_index=None, vel=.8, dur=None):
-    """无音高打击：hit('snare','roll',.6) / hit('drum_kit','snare1') / hit('timpani',2)（第 3 面鼓）。
-    name 可写前缀；dur 可截短（加 30ms 淡出）。有音高乐器也可用：整条自然衰减播放"""
+    """Unpitched percussion: hit('snare','roll',.6) / hit('drum_kit','snare1') / hit('timpani',2) (3rd drum).
+    name may be a prefix; dur can shorten it (adds a 30ms fade-out). Works for pitched instruments too: plays the full natural decay"""
     I = inst if isinstance(inst, Inst) else load(inst)
     var, m = name_or_index, None
     if isinstance(var, (int, np.integer)):
@@ -597,7 +597,7 @@ def hit(inst, name_or_index=None, vel=.8, dur=None):
         c = [v for v in I.vars if key[v].startswith(q)] or [v for v in I.vars if q in key[v]]
         if c: var = c[0]
         elif I.kind != 'hit': m, var = midi(var), None
-        else: raise KeyError(f'{I.name} 没有变体 {var!r}；可用 {I.vars}')
+        else: raise KeyError(f'{I.name} has no variant {var!r}; available: {I.vars}')
     vel = float(np.clip(vel, .01, 1))
     if var is None and I.vars and I.kind == 'hit': var = I.vars[0]
     z = I.pick(m, vel, var)
@@ -610,7 +610,7 @@ def hit(inst, name_or_index=None, vel=.8, dur=None):
 
 
 def chord(inst, pitches, dur, vel=.8, strum=0.0, **kw):
-    """和弦（单声道）：strum>0 时每个音依次延迟 strum 秒（吉他扫弦/竖琴琶音）"""
+    """Chord (mono): with strum>0 each note is delayed by strum seconds in turn (guitar strum/harp arpeggio)"""
     xs = [note(inst, p, dur, vel * (1 - .04 * i), **kw) for i, p in enumerate(pitches)]
     n = max(len(x) + int(i * strum * SR) for i, x in enumerate(xs)); out = np.zeros(n, np.float32)
     for i, x in enumerate(xs): s = int(i * strum * SR); out[s:s + len(x)] += x
@@ -618,8 +618,8 @@ def chord(inst, pitches, dur, vel=.8, strum=0.0, **kw):
 
 
 def render(events, dur=None, master=True):
-    """写谱：events = [(t, inst, pitch, dur, vel, pan[, gain]), ...] 或 dict(t=,inst=,pitch=,dur=,vel=,pan=,gain=,release=,attack=)。
-    无音高打击把 pitch 写成变体名或 None。返回立体声 float32 (N,2)；master=True 时逐声道前瞻限幅到 0.95"""
+    """Score: events = [(t, inst, pitch, dur, vel, pan[, gain]), ...] or dict(t=,inst=,pitch=,dur=,vel=,pan=,gain=,release=,attack=).
+    For unpitched percussion, pitch is the variant name or None. Returns stereo float32 (N,2); master=True applies a per-channel look-ahead limit at 0.95"""
     evs = []
     for e in events:
         if isinstance(e, dict): evs.append(e)
@@ -638,8 +638,8 @@ def render(events, dur=None, master=True):
 
 
 def room(x, size=.5, mix=.2, predelay=.015, damp=.5, seed_=3):
-    """简易卷积混响：去相关的指数衰减噪声 IR（高频衰减更快）。x 单声道或 (N,2)；返回 (N,2) 同长度。
-    size 0..1 → RT60 0.4–3.4s；mix 湿声比例；damp 0..1 越大越暗"""
+    """Simple convolution reverb: decorrelated exponentially decaying noise IR (highs decay faster). x mono or (N,2); returns (N,2) of the same length.
+    size 0..1 → RT60 0.4–3.4s; mix = wet ratio; damp 0..1, higher = darker"""
     x = np.asarray(x, np.float32); st = x if x.ndim == 2 else np.stack([x, x], 1)
     rt = .4 + 3.0 * size; n = int(rt * SR); t = np.arange(n) / SR
     r = np.random.default_rng(seed_); out = np.zeros_like(st)
@@ -655,13 +655,13 @@ def room(x, size=.5, mix=.2, predelay=.015, damp=.5, seed_=3):
 
 
 def info(nm=None):
-    """打印一件或全部乐器的概况（音域/力度层/变体/授权）"""
+    """Print an overview of one or all instruments (range/velocity layers/variants/license)"""
     for k in ([ALIASES.get(nm, nm)] if nm else REG):
         I = load(k); print(I, '|', REG[k]['desc'], '|', LIC[_lic(k)][1])
 
 
 def credits(names):
-    """根据用到的乐器名，返回片尾 CREDITS 需要写的归属行（CC BY 的必写；CC0 的列为致谢）"""
+    """From the instrument names used, return the attribution lines for the end CREDITS (required for CC BY; CC0 listed as thanks)"""
     need, thanks = [], set()
     for n in names:
         n = ALIASES.get(n, n); l = _lic(n)
